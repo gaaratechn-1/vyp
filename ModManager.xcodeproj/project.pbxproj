@@ -1,0 +1,406 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		MM001 /* ModManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF01; };
+		MM002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF02; };
+		MM003 /* mcm_bridge.m in Sources */ = {isa = PBXBuildFile; fileRef = MMF04; };
+		MM004 /* SecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF05; };
+		MM005 /* ContainerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF06; };
+		MM006 /* ModEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF07; };
+		MM007 /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF08; };
+		MM008 /* LocalServerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF09; };
+		MM009 /* ModItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF10; };
+		MM010 /* ModProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF11; };
+		MM011 /* InstalledAppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF12; };
+		MM012 /* ServerConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF13; };
+		MM013 /* ModTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF14; };
+		MM014 /* PasscodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF15; };
+		MM015 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF16; };
+		MM016 /* ModCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF17; };
+		MM017 /* ModEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF18; };
+		MM018 /* AppPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF19; };
+		MM019 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF20; };
+		MM020 /* ServerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF21; };
+		MM021 /* SecuritySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF22; };
+		MM022 /* DiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF23; };
+		MM023 /* LogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = MMF24; };
+		MM024 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = MMF26; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		MMAPP /* ModManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ModManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		MMF01 /* ModManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModManagerApp.swift; sourceTree = "<group>"; };
+		MMF02 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		MMF03 /* mcm_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mcm_bridge.h; sourceTree = "<group>"; };
+		MMF04 /* mcm_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = mcm_bridge.m; sourceTree = "<group>"; };
+		MMF05 /* SecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityService.swift; sourceTree = "<group>"; };
+		MMF06 /* ContainerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerService.swift; sourceTree = "<group>"; };
+		MMF07 /* ModEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModEngine.swift; sourceTree = "<group>"; };
+		MMF08 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
+		MMF09 /* LocalServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerClient.swift; sourceTree = "<group>"; };
+		MMF10 /* ModItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModItem.swift; sourceTree = "<group>"; };
+		MMF11 /* ModProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModProfile.swift; sourceTree = "<group>"; };
+		MMF12 /* InstalledAppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppInfo.swift; sourceTree = "<group>"; };
+		MMF13 /* ServerConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConfig.swift; sourceTree = "<group>"; };
+		MMF14 /* ModTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModTheme.swift; sourceTree = "<group>"; };
+		MMF15 /* PasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasscodeView.swift; sourceTree = "<group>"; };
+		MMF16 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		MMF17 /* ModCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModCardView.swift; sourceTree = "<group>"; };
+		MMF18 /* ModEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModEditorSheet.swift; sourceTree = "<group>"; };
+		MMF19 /* AppPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPickerSheet.swift; sourceTree = "<group>"; };
+		MMF20 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		MMF21 /* ServerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettingsView.swift; sourceTree = "<group>"; };
+		MMF22 /* SecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecuritySettingsView.swift; sourceTree = "<group>"; };
+		MMF23 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
+		MMF24 /* LogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogService.swift; sourceTree = "<group>"; };
+		MMF25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		MMF26 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		MMF27 /* ModManager-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ModManager-Bridging-Header.h"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		MMFRWK /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		MMMAIN /* Main Group */ = {
+			isa = PBXGroup;
+			children = (
+				MMGRP_APP /* App */,
+				MMGRP_CORE /* Core */,
+				MMGRP_MODELS /* Models */,
+				MMGRP_VIEWS /* Views */,
+				MMGRP_RES /* Resources */,
+				MMGRP_SUP /* Support */,
+				MMPROD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		MMGRP_APP /* App */ = {
+			isa = PBXGroup;
+			children = (
+				MMF01 /* ModManagerApp.swift */,
+				MMF02 /* RootView.swift */,
+			);
+			path = ModManager/App;
+			sourceTree = "<group>";
+		};
+		MMGRP_CORE /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				MMF27 /* ModManager-Bridging-Header.h */,
+				MMF03 /* mcm_bridge.h */,
+				MMF04 /* mcm_bridge.m */,
+				MMF05 /* SecurityService.swift */,
+				MMF06 /* ContainerService.swift */,
+				MMF07 /* ModEngine.swift */,
+				MMF08 /* BackupManager.swift */,
+				MMF09 /* LocalServerClient.swift */,
+			);
+			path = ModManager/Core;
+			sourceTree = "<group>";
+		};
+		MMGRP_MODELS /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				MMF10 /* ModItem.swift */,
+				MMF11 /* ModProfile.swift */,
+				MMF12 /* InstalledAppInfo.swift */,
+				MMF13 /* ServerConfig.swift */,
+			);
+			path = ModManager/Models;
+			sourceTree = "<group>";
+		};
+		MMGRP_VIEWS /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				MMF14 /* ModTheme.swift */,
+				MMF15 /* PasscodeView.swift */,
+				MMF16 /* MainView.swift */,
+				MMF17 /* ModCardView.swift */,
+				MMF18 /* ModEditorSheet.swift */,
+				MMF19 /* AppPickerSheet.swift */,
+				MMF20 /* SettingsView.swift */,
+				MMF21 /* ServerSettingsView.swift */,
+				MMF22 /* SecuritySettingsView.swift */,
+				MMF23 /* DiagnosticsView.swift */,
+			);
+			path = ModManager/Views;
+			sourceTree = "<group>";
+		};
+		MMGRP_RES /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				MMF25 /* Info.plist */,
+				MMF26 /* Assets.xcassets */,
+			);
+			path = ModManager/Resources;
+			sourceTree = "<group>";
+		};
+		MMGRP_SUP /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				MMF24 /* LogService.swift */,
+			);
+			path = ModManager/Support;
+			sourceTree = "<group>";
+		};
+		MMPROD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				MMAPP /* ModManager.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		MMTARGET /* ModManager */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = MMTCFG /* Build configuration list for PBXNativeTarget "ModManager" */;
+			buildPhases = (
+				MMSOURCES /* Sources */,
+				MMFRWK /* Frameworks */,
+				MMRES /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ModManager;
+			productName = ModManager;
+			productReference = MMAPP /* ModManager.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		MMPROJ /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					MMTARGET = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = MMPCFG /* Build configuration list for PBXProject "ModManager" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = MMMAIN;
+			productRefGroup = MMPROD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				MMTARGET /* ModManager */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		MMRES /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				MM024 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		MMSOURCES /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				MM001 /* ModManagerApp.swift in Sources */,
+				MM002 /* RootView.swift in Sources */,
+				MM003 /* mcm_bridge.m in Sources */,
+				MM004 /* SecurityService.swift in Sources */,
+				MM005 /* ContainerService.swift in Sources */,
+				MM006 /* ModEngine.swift in Sources */,
+				MM007 /* BackupManager.swift in Sources */,
+				MM008 /* LocalServerClient.swift in Sources */,
+				MM009 /* ModItem.swift in Sources */,
+				MM010 /* ModProfile.swift in Sources */,
+				MM011 /* InstalledAppInfo.swift in Sources */,
+				MM012 /* ServerConfig.swift in Sources */,
+				MM013 /* ModTheme.swift in Sources */,
+				MM014 /* PasscodeView.swift in Sources */,
+				MM015 /* MainView.swift in Sources */,
+				MM016 /* ModCardView.swift in Sources */,
+				MM017 /* ModEditorSheet.swift in Sources */,
+				MM018 /* AppPickerSheet.swift in Sources */,
+				MM019 /* SettingsView.swift in Sources */,
+				MM020 /* ServerSettingsView.swift in Sources */,
+				MM021 /* SecuritySettingsView.swift in Sources */,
+				MM022 /* DiagnosticsView.swift in Sources */,
+				MM023 /* LogService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		MM_DBG_PROJ /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		MM_REL_PROJ /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDEFINED_VARIABLES = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		MM_DBG_TGT /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ModManager/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apple.mobile.MobileHouseArrest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ModManager/Core/Bridging/ModManager-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		MM_REL_TGT /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ModManager/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apple.mobile.MobileHouseArrest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ModManager/Core/Bridging/ModManager-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		MMPCFG /* Build configuration list for PBXProject "ModManager" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				MM_DBG_PROJ /* Debug */,
+				MM_REL_PROJ /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		MMTCFG /* Build configuration list for PBXNativeTarget "ModManager" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				MM_DBG_TGT /* Debug */,
+				MM_REL_TGT /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = MMPROJ /* Project object */;
+}
