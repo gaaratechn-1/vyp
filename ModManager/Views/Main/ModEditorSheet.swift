@@ -114,11 +114,11 @@ public struct ModEditorSheet: View {
                                 .foregroundColor(ModTheme.textPrimary)
                             }
                             
-                            if let filename = payloadFilename, !filename.isEmpty {
+                            if !payloadFilename.isEmpty {
                                 HStack {
                                     Image(systemName: "doc.fill")
                                         .foregroundColor(ModTheme.textPrimary)
-                                    Text(filename)
+                                    Text(payloadFilename)
                                         .font(.system(size: 12, design: .monospaced))
                                         .foregroundColor(ModTheme.textPrimary)
                                     Spacer()

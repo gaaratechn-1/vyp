@@ -72,7 +72,7 @@ public final class ContainerService: ObservableObject {
             
             // 1. Obtener identificadores vía MCM Bridge si está disponible
             var error: NSString?
-            let identifiers = MCMEnumerateIdentifiersForClass(2, 500, &error) as? [String] ?? []
+            let identifiers = MCMEnumerateIdentifiersForClass(2, 500, &error)
             
             for bundleID in identifiers {
                 let name = self.cleanAppDisplayName(from: bundleID)
