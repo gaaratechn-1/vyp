@@ -35,33 +35,33 @@
 
 /* Begin PBXFileReference section */
 		MMAPP /* ModManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ModManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		MMF01 /* ModManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModManagerApp.swift; sourceTree = "<group>"; };
-		MMF02 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		MMF03 /* mcm_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mcm_bridge.h; sourceTree = "<group>"; };
-		MMF04 /* mcm_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = mcm_bridge.m; sourceTree = "<group>"; };
-		MMF05 /* SecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityService.swift; sourceTree = "<group>"; };
-		MMF06 /* ContainerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerService.swift; sourceTree = "<group>"; };
-		MMF07 /* ModEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModEngine.swift; sourceTree = "<group>"; };
-		MMF08 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
-		MMF09 /* LocalServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerClient.swift; sourceTree = "<group>"; };
-		MMF10 /* ModItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModItem.swift; sourceTree = "<group>"; };
-		MMF11 /* ModProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModProfile.swift; sourceTree = "<group>"; };
-		MMF12 /* InstalledAppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstalledAppInfo.swift; sourceTree = "<group>"; };
-		MMF13 /* ServerConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConfig.swift; sourceTree = "<group>"; };
-		MMF14 /* ModTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModTheme.swift; sourceTree = "<group>"; };
-		MMF15 /* PasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasscodeView.swift; sourceTree = "<group>"; };
-		MMF16 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
-		MMF17 /* ModCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModCardView.swift; sourceTree = "<group>"; };
-		MMF18 /* ModEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModEditorSheet.swift; sourceTree = "<group>"; };
-		MMF19 /* AppPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPickerSheet.swift; sourceTree = "<group>"; };
-		MMF20 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		MMF21 /* ServerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettingsView.swift; sourceTree = "<group>"; };
-		MMF22 /* SecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecuritySettingsView.swift; sourceTree = "<group>"; };
-		MMF23 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsView.swift; sourceTree = "<group>"; };
-		MMF24 /* LogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogService.swift; sourceTree = "<group>"; };
-		MMF25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		MMF26 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		MMF27 /* ModManager-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ModManager-Bridging-Header.h"; sourceTree = "<group>"; };
+		MMF01 /* ModManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/App/ModManagerApp.swift"; sourceTree = SOURCE_ROOT; };
+		MMF02 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/App/RootView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF03 /* mcm_bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ModManager/Core/Bridging/mcm_bridge.h"; sourceTree = SOURCE_ROOT; };
+		MMF04 /* mcm_bridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "ModManager/Core/Bridging/mcm_bridge.m"; sourceTree = SOURCE_ROOT; };
+		MMF05 /* SecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Core/Security/SecurityService.swift"; sourceTree = SOURCE_ROOT; };
+		MMF06 /* ContainerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Core/Sandbox/ContainerService.swift"; sourceTree = SOURCE_ROOT; };
+		MMF07 /* ModEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Core/Engine/ModEngine.swift"; sourceTree = SOURCE_ROOT; };
+		MMF08 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Core/Engine/BackupManager.swift"; sourceTree = SOURCE_ROOT; };
+		MMF09 /* LocalServerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Core/Network/LocalServerClient.swift"; sourceTree = SOURCE_ROOT; };
+		MMF10 /* ModItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Models/ModItem.swift"; sourceTree = SOURCE_ROOT; };
+		MMF11 /* ModProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Models/ModProfile.swift"; sourceTree = SOURCE_ROOT; };
+		MMF12 /* InstalledAppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Models/InstalledAppInfo.swift"; sourceTree = SOURCE_ROOT; };
+		MMF13 /* ServerConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Models/ServerConfig.swift"; sourceTree = SOURCE_ROOT; };
+		MMF14 /* ModTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Theme/ModTheme.swift"; sourceTree = SOURCE_ROOT; };
+		MMF15 /* PasscodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Security/PasscodeView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF16 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Main/MainView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF17 /* ModCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Main/ModCardView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF18 /* ModEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Main/ModEditorSheet.swift"; sourceTree = SOURCE_ROOT; };
+		MMF19 /* AppPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Main/AppPickerSheet.swift"; sourceTree = SOURCE_ROOT; };
+		MMF20 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Settings/SettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF21 /* ServerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Settings/ServerSettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF22 /* SecuritySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Settings/SecuritySettingsView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF23 /* DiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Views/Settings/DiagnosticsView.swift"; sourceTree = SOURCE_ROOT; };
+		MMF24 /* LogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModManager/Support/LogService.swift"; sourceTree = SOURCE_ROOT; };
+		MMF25 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ModManager/Resources/Info.plist"; sourceTree = SOURCE_ROOT; };
+		MMF26 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "ModManager/Resources/Assets.xcassets"; sourceTree = SOURCE_ROOT; };
+		MMF27 /* ModManager-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ModManager/Core/Bridging/ModManager-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,7 +94,7 @@
 				MMF01 /* ModManagerApp.swift */,
 				MMF02 /* RootView.swift */,
 			);
-			path = ModManager/App;
+			name = App;
 			sourceTree = "<group>";
 		};
 		MMGRP_CORE /* Core */ = {
@@ -109,7 +109,7 @@
 				MMF08 /* BackupManager.swift */,
 				MMF09 /* LocalServerClient.swift */,
 			);
-			path = ModManager/Core;
+			name = Core;
 			sourceTree = "<group>";
 		};
 		MMGRP_MODELS /* Models */ = {
@@ -120,7 +120,7 @@
 				MMF12 /* InstalledAppInfo.swift */,
 				MMF13 /* ServerConfig.swift */,
 			);
-			path = ModManager/Models;
+			name = Models;
 			sourceTree = "<group>";
 		};
 		MMGRP_VIEWS /* Views */ = {
@@ -137,7 +137,7 @@
 				MMF22 /* SecuritySettingsView.swift */,
 				MMF23 /* DiagnosticsView.swift */,
 			);
-			path = ModManager/Views;
+			name = Views;
 			sourceTree = "<group>";
 		};
 		MMGRP_RES /* Resources */ = {
@@ -146,7 +146,7 @@
 				MMF25 /* Info.plist */,
 				MMF26 /* Assets.xcassets */,
 			);
-			path = ModManager/Resources;
+			name = Resources;
 			sourceTree = "<group>";
 		};
 		MMGRP_SUP /* Support */ = {
@@ -154,7 +154,7 @@
 			children = (
 				MMF24 /* LogService.swift */,
 			);
-			path = ModManager/Support;
+			name = Support;
 			sourceTree = "<group>";
 		};
 		MMPROD /* Products */ = {
@@ -177,8 +177,6 @@
 				MMRES /* Resources */,
 			);
 			buildRules = (
-			);
-			dependencies = (
 			);
 			name = ModManager;
 			productName = ModManager;
@@ -340,7 +338,11 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ModManager/Resources/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/ModManager/Resources/Info.plist";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/ModManager/Core/Bridging",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -349,7 +351,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.apple.mobile.MobileHouseArrest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "ModManager/Core/Bridging/ModManager-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/ModManager/Core/Bridging/ModManager-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -364,7 +366,11 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ModManager/Resources/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/ModManager/Resources/Info.plist";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/ModManager/Core/Bridging",
+				);
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -373,7 +379,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.apple.mobile.MobileHouseArrest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "ModManager/Core/Bridging/ModManager-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/ModManager/Core/Bridging/ModManager-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

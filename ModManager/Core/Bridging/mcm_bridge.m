@@ -182,13 +182,15 @@ NSString *MCMActivateContainerPath(uint64_t cls, NSString *identifier, BOOL grou
         }
         
         api->querySetClass(query, cls);
-        xpc_object_t arr = xpc_array_create_empty();
-        xpc_array_set_string(arr, XPC_ARRAY_APPEND, identifier.UTF8String);
+        xpc_object_t value = xpc_string_create(identifier.UTF8String);
         if (group && api->querySetGroupIdentifiers) {
-            api->querySetGroupIdentifiers(query, arr);
+            api->querySetGroupIdentifiers(query, value);
         } else if (api->querySetIdentifiers) {
-            api->querySetIdentifiers(query, arr);
+            api->querySetIdentifiers(query, value);
         }
+#if !OS_OBJECT_USE_OBJC
+        if (value) xpc_release(value);
+#endif
         
         void *singleResult = api->queryGetSingle(query);
         if (!singleResult) {

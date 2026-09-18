@@ -2,6 +2,7 @@ import Foundation
 import LocalAuthentication
 import Combine
 import UIKit
+import CryptoKit
 
 public final class SecurityService: ObservableObject {
     public static let shared = SecurityService()
@@ -131,15 +132,8 @@ public final class SecurityService: ObservableObject {
     
     private func hashString(_ str: String) -> String {
         guard let data = str.data(using: .utf8) else { return str }
-        var digest = [UInt8](repeating: 0, count: 32)
-        data.withUnsafeBytes {
-            _ = CC_SHA256($0.baseAddress, CC_LONG(data.count), &digest)
-        }
-        return digest.map { String(format: "%02x", $0) }.joined()
+        let digest = SHA256.hash(data: data)
+        return digest.compactMap { String(format: "%02x", $0) }.joined()
     }
 }
 
-// Interfaz en C para CommonCrypto SHA256
-private let CC_SHA256_DIGEST_LENGTH = 32
-@_silgen_name("CC_SHA256")
-private func CC_SHA256(_ data: UnsafeRawPointer?, _ len: UInt32, _ md: UnsafeMutablePointer<UInt8>?) -> UnsafeMutablePointer<UInt8>?
