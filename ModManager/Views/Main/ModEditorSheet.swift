@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 public struct ModEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var engine = ModEngine.shared
+    @ObservedObject var containerService = ContainerService.shared
     
     @State private var modName: String = ""
     @State private var targetBundleID: String = ""
@@ -15,8 +16,10 @@ public struct ModEditorSheet: View {
     @State private var payloadData: Data? = nil
     
     @State private var showAppPicker: Bool = false
+    @State private var showSandboxBrowser: Bool = false
     @State private var showFilePicker: Bool = false
     @State private var errorMessage: String?
+    @State private var copiedFeedback: Bool = false
     
     var existingProfile: ModProfile?
     
@@ -35,6 +38,10 @@ public struct ModEditorSheet: View {
                 }
             }
         }
+    }
+    
+    private var pathValidation: PathValidationInfo {
+        containerService.validatePath(bundleID: targetBundleID, relativePath: relativePath)
     }
     
     public var body: some View {
@@ -70,7 +77,7 @@ public struct ModEditorSheet: View {
                                     .font(.system(size: 13, design: .monospaced))
                                     .foregroundColor(ModTheme.textPrimary)
                                 
-                                Button("Buscar") {
+                                Button("Seleccionar App") {
                                     showAppPicker = true
                                 }
                                 .minimalButton(isPrimary: false)
@@ -79,21 +86,77 @@ public struct ModEditorSheet: View {
                             .background(ModTheme.surface)
                             .cornerRadius(ModTheme.cornerRadiusSmall)
                             .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                            
+                            if !selectedAppName.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "app.badge.checkmark")
+                                        .font(.system(size: 11))
+                                    Text("App seleccionada: \(selectedAppName)")
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                }
+                                .foregroundColor(ModTheme.textSecondary)
+                                .padding(.leading, 4)
+                            }
                         }
                         
-                        // Section 3: Exact Target Path
+                        // Section 3: Exact Target Path & Sandbox Explorer
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("RUTA EXACTA EN EL SANDBOX")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundColor(ModTheme.textSecondary)
+                            HStack {
+                                Text("RUTA EXACTA EN EL SANDBOX")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .foregroundColor(ModTheme.textSecondary)
+                                
+                                Spacer()
+                                
+                                // Botón para abrir el explorador de archivos del sandbox
+                                Button(action: {
+                                    if targetBundleID.trimmingCharacters(in: .whitespaces).isEmpty {
+                                        errorMessage = "Selecciona primero una aplicación para explorar su sandbox."
+                                    } else {
+                                        showSandboxBrowser = true
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "folder.badge.gearshape")
+                                        Text("Explorar Sandbox")
+                                    }
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .foregroundColor(ModTheme.textPrimary)
+                                }
+                            }
                             
-                            TextField("Ej: Documents/game_save.dat", text: $relativePath)
-                                .font(.system(size: 13, design: .monospaced))
-                                .padding(12)
-                                .background(ModTheme.surface)
-                                .foregroundColor(ModTheme.textPrimary)
-                                .cornerRadius(ModTheme.cornerRadiusSmall)
-                                .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                            HStack {
+                                TextField("Ej: Documents/game_save.dat", text: $relativePath)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundColor(ModTheme.textPrimary)
+                                
+                                if !relativePath.isEmpty {
+                                    // Copiar ruta rápida
+                                    Button(action: {
+                                        UIPasteboard.general.string = relativePath
+                                        let impact = UIImpactFeedbackGenerator(style: .light)
+                                        impact.impactOccurred()
+                                        copiedFeedback = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                            copiedFeedback = false
+                                        }
+                                    }) {
+                                        Image(systemName: copiedFeedback ? "checkmark" : "doc.on.doc")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(copiedFeedback ? ModTheme.textPrimary : ModTheme.textSecondary)
+                                    }
+                                    .padding(.trailing, 4)
+                                }
+                            }
+                            .padding(12)
+                            .background(ModTheme.surface)
+                            .cornerRadius(ModTheme.cornerRadiusSmall)
+                            .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                            
+                            // Comprobador dinámico de estado de la ruta
+                            if !targetBundleID.isEmpty && !relativePath.isEmpty {
+                                pathValidationBadge(info: pathValidation)
+                            }
                             
                             Text("Ruta relativa dentro de Data/Application/<UUID>/")
                                 .font(.system(size: 10, design: .monospaced))
@@ -182,6 +245,13 @@ public struct ModEditorSheet: View {
                     selectedAppName: $selectedAppName
                 )
             }
+            .sheet(isPresented: $showSandboxBrowser) {
+                SandboxBrowserSheet(
+                    bundleID: targetBundleID,
+                    appName: selectedAppName,
+                    selectedRelativePath: $relativePath
+                )
+            }
             .sheet(isPresented: $showFilePicker) {
                 DocumentPicker { url in
                     if let data = try? Data(contentsOf: url) {
@@ -195,6 +265,53 @@ public struct ModEditorSheet: View {
                     }
                 }
             }
+        }
+    }
+    
+    // MARK: - Path Validation Badge
+    private func pathValidationBadge(info: PathValidationInfo) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconForValidation(info.status))
+                .font(.system(size: 12, weight: .bold))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(info.title.uppercased())
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    if let size = info.formattedSize {
+                        Text("(\(size))")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(ModTheme.textMuted)
+                    }
+                }
+                Text(info.message)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(ModTheme.textSecondary)
+            }
+            
+            Spacer()
+        }
+        .padding(10)
+        .background(ModTheme.surfaceSecondary)
+        .cornerRadius(6)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(ModTheme.border, lineWidth: 1)
+        )
+    }
+    
+    private func iconForValidation(_ status: PathValidationInfo.Status) -> String {
+        switch status {
+        case .fileExists:
+            return "checkmark.circle.fill"
+        case .directoryExists:
+            return "folder.badge.person.crop"
+        case .parentExists:
+            return "plus.circle.fill"
+        case .targetNotFound:
+            return "exclamationmark.circle"
+        case .containerInaccessible:
+            return "xmark.octagon.fill"
         }
     }
     

@@ -64,18 +64,8 @@ public struct MainView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 8)
                     
-                    // Mods List or Empty State
-                    if engine.isProcessing {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            ProgressView()
-                                .tint(ModTheme.textPrimary)
-                            Text(engine.activeOperationMessage ?? "Procesando...")
-                                .font(.system(size: 13, design: .monospaced))
-                                .foregroundColor(ModTheme.textSecondary)
-                        }
-                        Spacer()
-                    } else if filteredProfiles.isEmpty {
+                    // Mods List or Empty State (No se destruye durante operaciones)
+                    if filteredProfiles.isEmpty {
                         Spacer()
                         VStack(spacing: 16) {
                             Image(systemName: "square.stack.3d.up.slash")
@@ -111,6 +101,28 @@ public struct MainView: View {
                             .padding(16)
                         }
                     }
+                }
+                
+                // Non-destructive floating processing HUD
+                if engine.isProcessing, let msg = engine.activeOperationMessage {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            ProgressView()
+                                .tint(ModTheme.background)
+                            Text(msg)
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(ModTheme.background)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(ModTheme.textPrimary)
+                        .cornerRadius(ModTheme.cornerRadiusSmall)
+                        .shadow(radius: 8)
+                        .padding(.bottom, 24)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.2), value: engine.isProcessing)
                 }
             }
             .navigationTitle("MODS")

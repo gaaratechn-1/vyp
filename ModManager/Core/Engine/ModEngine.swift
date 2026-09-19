@@ -123,6 +123,7 @@ public final class ModEngine: ObservableObject {
             if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
                 self.modProfiles[idx].isApplied = true
                 self.modProfiles[idx].status = .applied
+                self.modProfiles[idx].lastRestoreSource = nil
                 self.modProfiles[idx].lastBackupDate = Date()
                 self.modProfiles[idx].updatedAt = Date()
                 self.saveProfiles()
@@ -169,6 +170,7 @@ public final class ModEngine: ObservableObject {
             if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
                 self.modProfiles[idx].isApplied = false
                 self.modProfiles[idx].status = .ready
+                self.modProfiles[idx].lastRestoreSource = .localBackup
                 self.modProfiles[idx].updatedAt = Date()
                 self.saveProfiles()
             }
@@ -199,7 +201,7 @@ public final class ModEngine: ObservableObject {
         for item in profile.items {
             let targetURL = containerRootURL.appendingPathComponent(item.sanitizedRelativePath)
             
-            // Descargar stock original del servidor
+            // Descargar stock original del servidor (lanza CloudRestoreError con detalle exacto)
             let originalData = try await LocalServerClient.shared.downloadOriginalStockFile(
                 bundleID: profile.targetBundleID,
                 relativePath: item.sanitizedRelativePath
@@ -213,6 +215,7 @@ public final class ModEngine: ObservableObject {
             if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
                 self.modProfiles[idx].isApplied = false
                 self.modProfiles[idx].status = .ready
+                self.modProfiles[idx].lastRestoreSource = .server
                 self.modProfiles[idx].updatedAt = Date()
                 self.saveProfiles()
             }

@@ -8,6 +8,11 @@ public enum ModStatus: String, Codable {
     case error          // Error al validar o aplicar
 }
 
+public enum RestoreSource: String, Codable {
+    case localBackup = "LOCAL"
+    case server = "SERVIDOR"
+}
+
 // MARK: - Mod Profile (Grupo de elementos modificados)
 public struct ModProfile: Codable, Identifiable, Hashable {
     public var id: UUID
@@ -17,6 +22,7 @@ public struct ModProfile: Codable, Identifiable, Hashable {
     public var items: [ModItem]
     public var status: ModStatus
     public var isApplied: Bool
+    public var lastRestoreSource: RestoreSource?
     public var createdAt: Date
     public var updatedAt: Date
     public var lastBackupDate: Date?
@@ -29,6 +35,7 @@ public struct ModProfile: Codable, Identifiable, Hashable {
         items: [ModItem] = [],
         status: ModStatus = .ready,
         isApplied: Bool = false,
+        lastRestoreSource: RestoreSource? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         lastBackupDate: Date? = nil
@@ -40,6 +47,7 @@ public struct ModProfile: Codable, Identifiable, Hashable {
         self.items = items
         self.status = status
         self.isApplied = isApplied
+        self.lastRestoreSource = lastRestoreSource
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.lastBackupDate = lastBackupDate
