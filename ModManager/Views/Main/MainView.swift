@@ -6,7 +6,7 @@ public struct MainView: View {
     @ObservedObject var serverClient = LocalServerClient.shared
     
     @State private var selectedFilterBundleID: String = ""
-    @State private var selectedFilterAppName: String = "Todas las Aplicaciones"
+    @State private var selectedFilterAppName: String = "Todas las Versiones"
     @State private var showAppFilterSheet: Bool = false
     @State private var showNewModSheet: Bool = false
     
@@ -24,11 +24,35 @@ public struct MainView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    // Píldora de Estado del Servidor & Auto-Descubrimiento (Punto 1)
+                    HStack {
+                        connectionPill
+                        
+                        Spacer()
+                        
+                        // Estado de Activación MHA-C2
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 6, height: 6)
+                            Text("MHA-C2 ACTIVO")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(ModTheme.textSecondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(ModTheme.surfaceSecondary)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+                    
                     // Filter / App Selection Header
                     VStack(spacing: 8) {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("APP DESTINO")
+                                Text("JUEGO SELECCIONADO")
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .foregroundColor(ModTheme.textSecondary)
                                 Text(selectedFilterAppName)
@@ -38,7 +62,10 @@ public struct MainView: View {
                             
                             Spacer()
                             
-                            Button(action: { showAppFilterSheet = true }) {
+                            Button(action: {
+                                HapticService.shared.lightTap()
+                                showAppFilterSheet = true
+                            }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "slider.horizontal.3")
                                     Text("Filtrar")
@@ -48,8 +75,9 @@ public struct MainView: View {
                             
                             if !selectedFilterBundleID.isEmpty {
                                 Button(action: {
+                                    HapticService.shared.lightTap()
                                     selectedFilterBundleID = ""
-                                    selectedFilterAppName = "Todas las Aplicaciones"
+                                    selectedFilterAppName = "Todas las Versiones"
                                 }) {
                                     Image(systemName: "xmark")
                                         .foregroundColor(ModTheme.textSecondary)
@@ -61,10 +89,9 @@ public struct MainView: View {
                         .minimalCard()
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 10)
                     .padding(.bottom, 8)
                     
-                    // Mods List or Empty State (No se destruye durante operaciones)
+                    // Mods List or Empty State
                     if filteredProfiles.isEmpty {
                         Spacer()
                         VStack(spacing: 16) {
@@ -76,13 +103,16 @@ public struct MainView: View {
                                 .font(.system(size: 14, weight: .bold, design: .monospaced))
                                 .foregroundColor(ModTheme.textPrimary)
                             
-                            Text("Crea un nuevo mod indicando la ruta exacta en el sandbox o sincroniza con el servidor.")
+                            Text("Crea un mod indicando la carpeta o ruta en Free Fire y carga tus archivos de reemplazo.")
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundColor(ModTheme.textSecondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 40)
                             
-                            Button(action: { showNewModSheet = true }) {
+                            Button(action: {
+                                HapticService.shared.lightTap()
+                                showNewModSheet = true
+                            }) {
                                 HStack {
                                     Image(systemName: "plus")
                                     Text("CREAR PRIMER MOD")
@@ -103,7 +133,7 @@ public struct MainView: View {
                     }
                 }
                 
-                // Non-destructive floating processing HUD
+                // Floating processing HUD
                 if engine.isProcessing, let msg = engine.activeOperationMessage {
                     VStack {
                         Spacer()
@@ -129,7 +159,10 @@ public struct MainView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showNewModSheet = true }) {
+                    Button(action: {
+                        HapticService.shared.lightTap()
+                        showNewModSheet = true
+                    }) {
                         Image(systemName: "plus")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(ModTheme.textPrimary)
@@ -144,6 +177,46 @@ public struct MainView: View {
             }
             .sheet(isPresented: $showNewModSheet) {
                 ModEditorSheet()
+            }
+        }
+    }
+    
+    // MARK: - Píldora de Conexión del Servidor
+    private var connectionPill: some View {
+        Button(action: {
+            HapticService.shared.lightTap()
+            Task {
+                _ = await serverClient.testConnection()
+            }
+        }) {
+            if serverClient.isOnline {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 7, height: 7)
+                    Text(serverClient.discoveredAddress ?? "\(serverClient.config.host):\(serverClient.config.port)")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(ModTheme.textPrimary)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(ModTheme.surface)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.green.opacity(0.4), lineWidth: 1))
+            } else {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.gray)
+                        .frame(width: 7, height: 7)
+                    Text("Modo Local Offline")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(ModTheme.textSecondary)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(ModTheme.surface)
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(ModTheme.border, lineWidth: 1))
             }
         }
     }

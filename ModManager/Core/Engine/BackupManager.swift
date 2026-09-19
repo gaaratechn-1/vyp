@@ -42,14 +42,23 @@ public final class BackupManager {
         bundleID: String,
         relativePath: String
     ) throws -> BackupItemMetadata? {
-        guard fileManager.fileExists(atPath: sourceURL.path) else {
-            ModLog("El elemento original no existe en \(sourceURL.path); se registrará como nuevo", category: "BCK")
-            return nil
-        }
-        
         let modDir = backupDirectory(for: modID)
         let filenameSafe = relativePath.replacingOccurrences(of: "/", with: "___")
         let destinationURL = modDir.appendingPathComponent(filenameSafe)
+        let markerURL = modDir.appendingPathComponent(filenameSafe + ".new_marker")
+        
+        guard fileManager.fileExists(atPath: sourceURL.path) else {
+            ModLog("El elemento original no existe en \(sourceURL.path); registrando como nuevo para rollback limpio", category: "BCK")
+            try? "".write(to: markerURL, atomically: true, encoding: .utf8)
+            return BackupItemMetadata(
+                modID: modID,
+                bundleID: bundleID,
+                relativePath: relativePath,
+                originalSHA256: "NEW_CREATED",
+                backupDate: Date(),
+                fileSize: 0
+            )
+        }
         
         // Si ya hay un backup previo guardado, conservamos el backup original primario
         if fileManager.fileExists(atPath: destinationURL.path) {
@@ -97,7 +106,7 @@ public final class BackupManager {
         }
     }
     
-    /// Restaura el archivo original desde la copia de seguridad local
+    /// Restaura el archivo original desde la copia de seguridad local (o elimina si fue creado por el mod)
     public func restoreOriginal(
         modID: UUID,
         targetURL: URL,
@@ -106,6 +115,16 @@ public final class BackupManager {
         let modDir = backupDirectory(for: modID)
         let filenameSafe = relativePath.replacingOccurrences(of: "/", with: "___")
         let backupURL = modDir.appendingPathComponent(filenameSafe)
+        let markerURL = modDir.appendingPathComponent(filenameSafe + ".new_marker")
+        
+        // Si fue un archivo introducido nuevo por el mod, removerlo para dejar limpio el juego
+        if fileManager.fileExists(atPath: markerURL.path) {
+            if fileManager.fileExists(atPath: targetURL.path) {
+                try fileManager.removeItem(at: targetURL)
+            }
+            ModLog("Archivo creado por mod eliminado limpiamente durante restauración: \(relativePath)", category: "BCK")
+            return true
+        }
         
         guard fileManager.fileExists(atPath: backupURL.path) else {
             ModLog("No se encontró copia de seguridad local para \(relativePath)", category: "BCK")
@@ -134,7 +153,8 @@ public final class BackupManager {
         let modDir = backupDirectory(for: modID)
         let filenameSafe = relativePath.replacingOccurrences(of: "/", with: "___")
         let backupURL = modDir.appendingPathComponent(filenameSafe)
-        return fileManager.fileExists(atPath: backupURL.path)
+        let markerURL = modDir.appendingPathComponent(filenameSafe + ".new_marker")
+        return fileManager.fileExists(atPath: backupURL.path) || fileManager.fileExists(atPath: markerURL.path)
     }
     
     /// Elimina los backups de un Mod específico

@@ -155,37 +155,10 @@ public final class ContainerService: ObservableObject {
     private var containerCache: [String: String] = [:]
     private let cacheLock = NSLock()
     
-    // Catálogo 3105 de aplicaciones comunes y juegos populares
-    public static let researchAppIdentifiers: [String] = [
-        // Juegos Populares
-        "com.dts.freefireth", "com.dts.freefiremax", "com.tencent.ig", "com.pubg.krmobile",
-        "com.activision.callofduty.shooter", "com.roblox.robloxmobile", "com.mojang.minecraftpe",
-        "com.supercell.brawlstars", "com.supercell.clashroyale", "com.supercell.clashofclans",
-        "com.miHoYo.GenshinImpact", "com.HoYoverse.hkrpgoversea", "com.ea.gp.fifamobile",
-        "com.epicgames.fortnite", "com.riotgames.league.wildrift", "com.innersloth.amongus",
-        "com.subwaysurfers", "com.kiloo.subwaysurfers", "com.king.candycrushsaga",
-        "com.gameloft.asphalt9", "com.playrix.gardenscapes", "com.playrix.homescapes",
-        
-        // Redes Sociales y Multimedia
-        "com.burbn.instagram", "com.zhiliaoapp.musically", "com.toyopagroup.picaboo",
-        "net.whatsapp.WhatsApp", "ph.telegra.Telegraph", "org.telegram.messenger",
-        "com.google.ios.youtube", "com.spotify.client", "com.atebits.Tweetie2",
-        "com.hammerandchisel.discord", "com.facebook.Facebook", "com.facebook.Messenger",
-        "com.netflix.Netflix", "com.amazon.Amazon", "com.reddit.Reddit",
-        
-        // Apps del Sistema Apple
-        "com.apple.mobilesafari", "com.apple.mobilenotes", "com.apple.Maps",
-        "com.apple.facetime", "com.apple.iBooks", "com.apple.podcasts",
-        "com.apple.PosterBoard", "com.apple.mobilemail", "com.apple.weather",
-        "com.apple.camera", "com.apple.Health", "com.apple.Fitness",
-        "com.apple.tips", "com.apple.Passbook", "com.apple.reminders",
-        "com.apple.stocks", "com.apple.news", "com.apple.Home", "com.apple.tv",
-        "com.apple.shortcuts", "com.apple.freeform", "com.apple.calculator",
-        "com.apple.MobileSMS", "com.apple.InCallService", "com.apple.Preferences",
-        "com.apple.springboard", "com.apple.Photos", "com.apple.AppStore",
-        "com.apple.Music", "com.apple.Bridge", "com.apple.Clock",
-        "com.apple.VoiceMemos", "com.apple.Translate", "com.apple.measure",
-        "com.apple.compass", "com.apple.Magnifier", "com.apple.DocumentsApp"
+    // Aplicaciones Objetivo Exclusivas: Free Fire MAX y Free Fire
+    public static let targetFreeFireBundleIDs: [String] = [
+        "com.dts.freefiremax",
+        "com.dts.freefireth"
     ]
     
     private init() {
@@ -355,46 +328,19 @@ public final class ContainerService: ObservableObject {
         return result
     }
     
-    // MARK: - Escaneo de Aplicaciones (Pipeline Completo Método 3105 MHA-C2)
+    // MARK: - Escaneo Exclusivo de Free Fire (Free Fire MAX & Free Fire)
     
     public func refreshApps() {
         isScanning = true
         DispatchQueue.global(qos: .userInitiated).async {
             var appsMap: [String: InstalledAppInfo] = [:]
             
-            // FASE 1: Catálogo de Bundles en Disco (/Applications, /System/Applications, /var/containers/Bundle/Application)
-            let bundleCatalog = self.scanApplicationBundleCatalog()
-            ModLog("3105: Bundles escaneados en disco: \(bundleCatalog.count)", category: "APP")
+            let targetGames = [
+                ("com.dts.freefiremax", "Free Fire MAX"),
+                ("com.dts.freefireth", "Free Fire")
+            ]
             
-            // FASE 2: Contenedores en Filesystem vía fsgetpath (walk de inodos 3105)
-            let fsContainers = self.scanFilesystemContainers()
-            ModLog("3105: Contenedores detectados por fsgetpath: \(fsContainers.count)", category: "APP")
-            
-            // FASE 3: Aplicaciones instaladas vía API del sistema (MobileInstallation + LaunchServices)
-            let rawInstalled = MCMInstalledAppInfo()
-            ModLog("3105: MCMInstalledAppInfo devolvió \(rawInstalled.count) apps", category: "APP")
-            
-            // FASE 4: Extraer candidatos de LaunchServices Store (.csstore de com.apple.lsd)
-            let lsCandidates = self.extractLaunchServicesStoreIdentifiers()
-            ModLog("3105: LaunchServices candidatos: \(lsCandidates.count)", category: "APP")
-            
-            // FASE 5: Consolidar universo de candidatos
-            var allCandidates = Set<String>()
-            for bID in bundleCatalog.keys { allCandidates.insert(bID) }
-            for bID in fsContainers.keys { allCandidates.insert(bID) }
-            for bID in rawInstalled.keys { allCandidates.insert(bID) }
-            for bID in lsCandidates { allCandidates.insert(bID) }
-            for bID in Self.researchAppIdentifiers { allCandidates.insert(bID) }
-            
-            var err: NSString?
-            let mcmIdentifiers = MCMEnumerateIdentifiersForClass(2, 500, &err)
-            for bID in mcmIdentifiers { allCandidates.insert(bID) }
-            
-            let filteredCandidates = allCandidates.filter { Self.shouldDisplayApp(bundleID: $0) }
-            ModLog("3105: Total de candidatos a verificar y activar: \(filteredCandidates.count)", category: "APP")
-            
-            var resolvedCount = 0
-            for bundleID in filteredCandidates {
+            for (bundleID, defaultName) in targetGames {
                 var containerPath = self.resolveContainerPath(for: bundleID) ?? ""
                 
                 // Si aún no tenemos ruta, intentar activar con MHA-C2
@@ -407,92 +353,53 @@ public final class ContainerService: ObservableObject {
                     }
                 }
                 
-                // Si tenemos contenedor válido en disco
-                guard !containerPath.isEmpty && Self.isApplicationContainerPath(containerPath) else {
-                    continue
+                #if targetEnvironment(simulator)
+                if containerPath.isEmpty {
+                    let simPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("SimulatedContainers/\(bundleID)")
+                    self.prepareSimulatedContainer(at: simPath, bundleID: bundleID)
+                    containerPath = simPath
+                    self.rememberContainerPath(simPath, for: bundleID)
+                }
+                #endif
+                
+                var displayName = defaultName
+                let info = MCMAppInfoForBundleID(bundleID)
+                if let name = info["name"] as? String, !name.isEmpty && name != bundleID {
+                    displayName = name
                 }
                 
-                // Determinar nombre y versión
-                var displayName = ""
-                var version = ""
-                
-                if let meta = bundleCatalog[bundleID] {
-                    displayName = meta.displayName
-                    version = meta.version
-                } else if let fs = fsContainers[bundleID], !fs.name.isEmpty {
-                    displayName = fs.name
-                } else if let raw = rawInstalled[bundleID] {
-                    displayName = (raw["name"] as? String) ?? ""
-                    version = (raw["version"] as? String) ?? ""
-                }
-                
-                if displayName.isEmpty {
-                    let info = MCMAppInfoForBundleID(bundleID)
-                    displayName = (info["name"] as? String) ?? self.cleanAppDisplayName(from: bundleID)
-                }
-                
-                let isUser = !bundleID.hasPrefix("com.apple.")
                 appsMap[bundleID] = InstalledAppInfo(
                     bundleID: bundleID,
                     displayName: displayName,
                     containerPath: containerPath,
-                    version: version,
-                    isUserApp: isUser
+                    version: "iOS",
+                    isUserApp: true
                 )
-                
-                resolvedCount += 1
-                if resolvedCount % 5 == 0 {
-                    self.publishApps(Array(appsMap.values))
-                }
             }
             
-            // Si el dispositivo no devolvió apps (ej. simulador), cargar catálogo popular
-            if appsMap.isEmpty {
-                for bID in Self.researchAppIdentifiers.prefix(16) {
-                    let path = self.resolveContainerPath(for: bID) ?? ""
-                    let isUser = !bID.hasPrefix("com.apple.")
-                    appsMap[bID] = InstalledAppInfo(
-                        bundleID: bID,
-                        displayName: self.cleanAppDisplayName(from: bID),
-                        containerPath: path,
-                        isUserApp: isUser
-                    )
-                }
-            }
-            
-            self.publishApps(Array(appsMap.values))
+            let resultList = Array(appsMap.values)
+            self.publishApps(resultList)
             
             DispatchQueue.main.async {
                 self.isScanning = false
-                ModLog("3105: Total final de aplicaciones listas: \(self.installedApps.count)", category: "APP")
+                ModLog("Objetivos de Free Fire listos: \(self.installedApps.count)", category: "APP")
             }
         }
     }
     
     private func publishApps(_ list: [InstalledAppInfo]) {
         let sorted = list.sorted {
-            if $0.isUserApp != $1.isUserApp {
-                return $0.isUserApp && !$1.isUserApp
-            }
-            return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
         DispatchQueue.main.async {
             self.installedApps = sorted
         }
     }
     
-    /// Oculta MobileHouseArrest (ModManager) para no listarse a sí mismo como objetivo
+    /// Filtro estricto: Solo permite com.dts.freefiremax y com.dts.freefireth
     public static func shouldDisplayApp(bundleID: String) -> Bool {
-        let clean = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return false }
-        guard UUID(uuidString: clean) == nil else { return false }
-        if clean.caseInsensitiveCompare("com.apple.mobile.MobileHouseArrest") == .orderedSame {
-            return false
-        }
-        if clean.caseInsensitiveCompare("com.apple.mobile.mobilehousearrest") == .orderedSame {
-            return false
-        }
-        return true
+        let clean = bundleID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return clean == "com.dts.freefiremax" || clean == "com.dts.freefireth"
     }
     
     // MARK: - Extracción de com.apple.LaunchServices-*.csstore (3105)

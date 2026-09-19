@@ -19,11 +19,24 @@ public struct ModCardView: View {
             // Header: Name & Status
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(profile.name)
-                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                        .foregroundColor(ModTheme.textPrimary)
+                    HStack(spacing: 8) {
+                        Text(profile.name)
+                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                            .foregroundColor(ModTheme.textPrimary)
+                        
+                        if profile.items.count > 1 {
+                            Text("\(profile.items.count) ARCHIVOS")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(ModTheme.surfaceSecondary)
+                                .foregroundColor(ModTheme.textPrimary)
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(ModTheme.border, lineWidth: 1))
+                        }
+                    }
                     
-                    Text(profile.targetBundleID)
+                    Text(profile.targetBundleID == "com.dts.freefireth" ? "Free Fire (\(profile.targetBundleID))" : "Free Fire MAX (\(profile.targetBundleID))")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundColor(ModTheme.textSecondary)
                 }
@@ -63,8 +76,7 @@ public struct ModCardView: View {
                             // Botón copiar ruta rápida
                             Button(action: {
                                 UIPasteboard.general.string = item.sanitizedRelativePath
-                                let impact = UIImpactFeedbackGenerator(style: .light)
-                                impact.impactOccurred()
+                                HapticService.shared.lightTap()
                                 copiedPathToast = "Copiado: \(item.sanitizedRelativePath)"
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                     copiedPathToast = nil
@@ -268,21 +280,18 @@ public struct ModCardView: View {
     
     private func applyModAction() {
         isPerformingAction = true
+        HapticService.shared.mediumImpact()
         Task {
             do {
                 try await engine.applyMod(profile: profile)
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.success)
+                HapticService.shared.success()
                 
-                let path = profile.items.first?.sanitizedRelativePath ?? "archivo destino"
                 alertTitle = "✓ Mod Aplicado Exitosamente"
-                alertMessage = "El mod ha sido aplicado en el sandbox de [\(profile.targetBundleID)].\n\n• Archivo reemplazado: \(path)\n• Copia de seguridad del original creada automáticamente en el dispositivo."
+                alertMessage = "El mod ha sido aplicado en el sandbox de [\(profile.targetBundleID)].\n\n• Archivos aplicados: \(profile.items.count) elemento(s)\n• Copias de seguridad automáticas guardadas en el dispositivo."
                 isPerformingAction = false
                 showAlert = true
             } catch {
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.error)
-                
+                HapticService.shared.error()
                 alertTitle = "✕ Error al Aplicar Mod"
                 alertMessage = error.localizedDescription
                 isPerformingAction = false
@@ -293,21 +302,18 @@ public struct ModCardView: View {
     
     private func restoreLocalAction() {
         isPerformingAction = true
+        HapticService.shared.mediumImpact()
         Task {
             do {
                 try await engine.restoreFromLocalBackup(profile: profile)
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.success)
+                HapticService.shared.success()
                 
-                let path = profile.items.first?.sanitizedRelativePath ?? "archivo original"
-                alertTitle = "↺ Original Restaurado (Local)"
-                alertMessage = "El archivo original limpio ha sido restaurado con éxito desde la copia de seguridad local guardada en tu dispositivo.\n\n• Elemento: \(path)\n• App: [\(profile.targetBundleID)]"
+                alertTitle = "↺ Originales Restaurados (Local)"
+                alertMessage = "Todos los archivos originales (\(profile.items.count)) han sido restaurados con éxito desde el respaldo local.\n\n• Juego: [\(profile.targetBundleID)]"
                 isPerformingAction = false
                 showAlert = true
             } catch {
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.error)
-                
+                HapticService.shared.error()
                 alertTitle = "✕ Error al Restaurar Local"
                 alertMessage = error.localizedDescription
                 isPerformingAction = false
@@ -318,30 +324,25 @@ public struct ModCardView: View {
     
     private func restoreServerAction() {
         isPerformingAction = true
+        HapticService.shared.mediumImpact()
         Task {
             do {
                 try await engine.restoreFromServerOriginal(profile: profile)
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.success)
+                HapticService.shared.success()
                 
-                let path = profile.items.first?.sanitizedRelativePath ?? "archivo original"
-                alertTitle = "🌐 Original Restaurado (Servidor)"
-                alertMessage = "El archivo original limpio ha sido descargado exitosamente desde el servidor y restaurado en el sandbox de la aplicación.\n\n• Elemento: \(path)\n• Servidor: \(serverClient.config.baseEndpoint)"
+                alertTitle = "🌐 Originales Restaurados (Servidor)"
+                alertMessage = "Archivos originales descargados exitosamente del servidor y restaurados en el sandbox.\n\n• Elementos: \(profile.items.count)\n• Servidor: \(serverClient.config.baseEndpoint)"
                 isPerformingAction = false
                 showAlert = true
             } catch let error as CloudRestoreError {
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.error)
-                
+                HapticService.shared.error()
                 alertTitle = "✕ \(error.failureReason ?? "Error de Restauración")"
                 alertMessage = error.localizedDescription
                 isPerformingAction = false
                 showAlert = true
             } catch {
-                let haptic = UINotificationFeedbackGenerator()
-                haptic.notificationOccurred(.error)
-                
-                alertTitle = "✕ Error al Restaurar desde Servidor"
+                HapticService.shared.error()
+                alertTitle = "✕ Error al Restaurar"
                 alertMessage = error.localizedDescription
                 isPerformingAction = false
                 showAlert = true

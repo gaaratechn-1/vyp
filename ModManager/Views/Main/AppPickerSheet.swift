@@ -6,32 +6,15 @@ public struct AppPickerSheet: View {
     @Binding var selectedBundleID: String
     @Binding var selectedAppName: String
     
-    @State private var searchText: String = ""
-    @State private var filterCategory: Int = 0 // 0: Usuario / Juegos, 1: Todas, 2: Sistema
-    @State private var showManualPrompt: Bool = false
-    @State private var manualBundleID: String = ""
-    @State private var manualAppName: String = ""
+    @State private var showCustomManual: Bool = false
+    @State private var customBundleID: String = ""
+    @State private var customAppName: String = ""
     
-    var filteredApps: [InstalledAppInfo] {
-        var base = containerService.installedApps
-        
-        switch filterCategory {
-        case 0: // Usuario / Juegos
-            base = base.filter { $0.isUserApp }
-        case 2: // Sistema
-            base = base.filter { !$0.isUserApp }
-        default: // Todas
-            break
-        }
-        
-        if searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-            return base
-        }
-        return base.filter {
-            $0.displayName.localizedCaseInsensitiveContains(searchText) ||
-            $0.bundleID.localizedCaseInsensitiveContains(searchText)
-        }
-    }
+    // Las 2 versiones objetivo exclusivas
+    private let targetGames: [(bundleID: String, name: String, subtitle: String, icon: String)] = [
+        ("com.dts.freefiremax", "Free Fire MAX", "Versión MAX con gráficos avanzados", "flame.fill"),
+        ("com.dts.freefireth", "Free Fire", "Versión estándar original", "flame")
+    ]
     
     public var body: some View {
         NavigationView {
@@ -39,249 +22,186 @@ public struct AppPickerSheet: View {
                 ModTheme.background
                     .ignoresSafeArea()
                 
-                VStack(spacing: 12) {
-                    // Category Filter Segmented Control
-                    Picker("Categoría", selection: $filterCategory) {
-                        Text("Usuario / Juegos").tag(0)
-                        Text("Todas (\(containerService.installedApps.count))").tag(1)
-                        Text("Sistema").tag(2)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    
-                    // Search Bar
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(ModTheme.textSecondary)
-                        TextField("Buscar aplicación o bundle ID...", text: $searchText)
-                            .foregroundColor(ModTheme.textPrimary)
-                            .font(.system(size: 14, design: .monospaced))
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(ModTheme.textSecondary)
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(ModTheme.surface)
-                    .cornerRadius(ModTheme.cornerRadiusSmall)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall)
-                            .stroke(ModTheme.border, lineWidth: 1)
-                    )
-                    .padding(.horizontal, 16)
-                    
-                    // Manual entry button if search yielded no results or custom app needed
-                    if !searchText.isEmpty && !filteredApps.contains(where: { $0.bundleID.lowercased() == searchText.lowercased() }) {
-                        Button(action: {
-                            selectedBundleID = searchText.trimmingCharacters(in: .whitespaces)
-                            selectedAppName = searchText.trimmingCharacters(in: .whitespaces)
-                            dismiss()
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle")
-                                Text("Usar bundle ID: \"\(searchText)\"")
-                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .minimalButton(isPrimary: false)
-                        .padding(.horizontal, 16)
-                    }
-                    
-                    // Apps List
-                    if containerService.isScanning {
-                        Spacer()
-                        ProgressView()
-                            .tint(ModTheme.textPrimary)
-                        Text("Escaneando sandbox de aplicaciones...")
-                            .font(.system(size: 13, design: .monospaced))
-                            .foregroundColor(ModTheme.textSecondary)
-                            .padding(.top, 8)
-                        Spacer()
-                    } else if filteredApps.isEmpty {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "app.dashed")
-                                .font(.system(size: 36))
-                                .foregroundColor(ModTheme.textMuted)
-                            Text("No se encontraron aplicaciones")
-                                .font(.system(size: 14, design: .monospaced))
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("SELECCIONA EL JUEGO OBJETIVO")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .foregroundColor(ModTheme.textSecondary)
-                            
-                            Button("Ingresar Bundle ID manualmente") {
-                                showManualPrompt = true
-                            }
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(ModTheme.textPrimary)
-                            .padding(.top, 4)
+                            Text("Elige la versión de Free Fire donde deseas instalar y gestionar tus mods.")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(ModTheme.textMuted)
                         }
-                        Spacer()
-                    } else {
-                        List(filteredApps) { app in
-                            Button(action: {
-                                selectedBundleID = app.bundleID
-                                selectedAppName = app.displayName
-                                dismiss()
-                            }) {
-                                HStack(spacing: 14) {
-                                    // Minimalist monochrome badge
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(ModTheme.surfaceSecondary)
-                                            .frame(width: 38, height: 38)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .stroke(ModTheme.border, lineWidth: 1)
-                                            )
-                                        Image(systemName: app.isUserApp ? "gamecontroller.fill" : "gearshape.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(ModTheme.textPrimary)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(spacing: 6) {
-                                            Text(app.displayName)
-                                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                                .foregroundColor(ModTheme.textPrimary)
-                                            
-                                            if !app.version.isEmpty {
-                                                Text("v\(app.version)")
-                                                    .font(.system(size: 10, design: .monospaced))
-                                                    .foregroundColor(ModTheme.textMuted)
-                                            }
-                                        }
-                                        
-                                        Text(app.bundleID)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundColor(ModTheme.textSecondary)
-                                        
-                                        // Sandbox status indicator
-                                        HStack(spacing: 4) {
-                                            Circle()
-                                                .fill(app.hasValidContainer ? ModTheme.textPrimary : ModTheme.textMuted)
-                                                .frame(width: 5, height: 5)
-                                            Text(app.hasValidContainer ? "Sandbox resuelto" : "Sandbox por resolver")
-                                                .font(.system(size: 9, design: .monospaced))
-                                                .foregroundColor(ModTheme.textMuted)
-                                        }
-                                        .padding(.top, 1)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if selectedBundleID == app.bundleID {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(ModTheme.textPrimary)
-                                    }
+                        .padding(.horizontal, 4)
+                        
+                        // Tarjetas de Free Fire
+                        ForEach(targetGames, id: \.bundleID) { game in
+                            gameCard(bundleID: game.bundleID, name: game.name, subtitle: game.subtitle, icon: game.icon)
+                        }
+                        
+                        Divider()
+                            .background(ModTheme.border)
+                            .padding(.vertical, 8)
+                        
+                        // Opción Manual / Avanzada
+                        if showCustomManual {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("ENTRADA MANUAL AVANZADA")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(ModTheme.textSecondary)
+                                
+                                TextField("Nombre (ej: Servidor Avanzado)", text: $customAppName)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .padding(10)
+                                    .background(ModTheme.surface)
+                                    .cornerRadius(ModTheme.cornerRadiusSmall)
+                                    .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                                
+                                TextField("Bundle ID (ej: com.dts.freefireth.adv)", text: $customBundleID)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .padding(10)
+                                    .background(ModTheme.surface)
+                                    .cornerRadius(ModTheme.cornerRadiusSmall)
+                                    .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                                
+                                Button("Usar Bundle ID Manual") {
+                                    guard !customBundleID.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                                    HapticService.shared.lightTap()
+                                    selectedBundleID = customBundleID.trimmingCharacters(in: .whitespaces)
+                                    selectedAppName = customAppName.trimmingCharacters(in: .whitespaces).isEmpty ? customBundleID : customAppName
+                                    dismiss()
                                 }
-                                .padding(.vertical, 4)
+                                .minimalButton(isPrimary: true)
+                                .frame(maxWidth: .infinity)
                             }
-                            .listRowBackground(ModTheme.surface)
-                            .listRowSeparatorTint(ModTheme.border)
+                            .padding(14)
+                            .background(ModTheme.surfaceSecondary)
+                            .cornerRadius(ModTheme.cornerRadius)
+                            .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadius).stroke(ModTheme.border, lineWidth: 1))
+                        } else {
+                            Button(action: {
+                                HapticService.shared.lightTap()
+                                showCustomManual = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle")
+                                    Text("Usar otro Bundle ID de Free Fire...")
+                                }
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(ModTheme.textSecondary)
+                            }
+                            .padding(.horizontal, 4)
                         }
-                        .listStyle(.plain)
-                        .background(ModTheme.background)
                     }
+                    .padding(20)
                 }
             }
-            .navigationTitle("SELECCIONAR APP")
+            .navigationTitle("SELECCIONAR JUEGO")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") {
+                        HapticService.shared.lightTap()
                         dismiss()
                     }
                     .foregroundColor(ModTheme.textPrimary)
                     .font(.system(size: 14, design: .monospaced))
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 12) {
-                        Button(action: { showManualPrompt = true }) {
-                            Image(systemName: "keyboard")
-                                .foregroundColor(ModTheme.textPrimary)
-                        }
-                        
-                        Button(action: { containerService.refreshApps() }) {
-                            Image(systemName: "arrow.clockwise")
-                                .foregroundColor(ModTheme.textPrimary)
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showManualPrompt) {
-                manualEntryView
-            }
-            .onAppear {
-                if containerService.installedApps.isEmpty {
-                    containerService.refreshApps()
-                }
             }
         }
     }
     
-    // MARK: - Manual Entry Sheet
-    private var manualEntryView: some View {
-        NavigationView {
-            ZStack {
-                ModTheme.background
-                    .ignoresSafeArea()
+    // MARK: - Tarjeta de Juego
+    private func gameCard(bundleID: String, name: String, subtitle: String, icon: String) -> some View {
+        let isSelected = (selectedBundleID == bundleID)
+        let containerPath = containerService.resolveContainerPath(for: bundleID)
+        let isAccessible = containerPath != nil && !containerPath!.isEmpty
+        
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                // Icono
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? ModTheme.textPrimary : ModTheme.surfaceSecondary)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(ModTheme.border, lineWidth: 1)
+                        )
+                    Image(systemName: icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? ModTheme.background : ModTheme.textPrimary)
+                }
                 
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("INTRODUCIR BUNDLE ID")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundColor(ModTheme.textSecondary)
-                    
-                    TextField("com.empresa.juego", text: $manualBundleID)
-                        .font(.system(size: 14, design: .monospaced))
-                        .padding(12)
-                        .background(ModTheme.surface)
-                        .foregroundColor(ModTheme.textPrimary)
-                        .cornerRadius(ModTheme.cornerRadiusSmall)
-                        .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
-                    
-                    Text("Nombre de la App (Opcional)")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundColor(ModTheme.textSecondary)
-                    
-                    TextField("Ej: Mi Juego", text: $manualAppName)
-                        .font(.system(size: 14, design: .monospaced))
-                        .padding(12)
-                        .background(ModTheme.surface)
-                        .foregroundColor(ModTheme.textPrimary)
-                        .cornerRadius(ModTheme.cornerRadiusSmall)
-                        .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
-                    
-                    Button(action: {
-                        let cleanID = manualBundleID.trimmingCharacters(in: .whitespaces)
-                        if !cleanID.isEmpty {
-                            selectedBundleID = cleanID
-                            selectedAppName = manualAppName.isEmpty ? cleanID : manualAppName
-                            showManualPrompt = false
-                            dismiss()
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(name)
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
+                            .foregroundColor(ModTheme.textPrimary)
+                        
+                        if isSelected {
+                            Text("ACTIVO")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(ModTheme.background)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(ModTheme.textPrimary)
+                                .cornerRadius(4)
                         }
-                    }) {
-                        Text("SELECCIONAR APP")
-                            .frame(maxWidth: .infinity)
                     }
-                    .minimalButton(isPrimary: true)
-                    .padding(.top, 10)
                     
-                    Spacer()
+                    Text(bundleID)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(ModTheme.textSecondary)
+                    
+                    Text(subtitle)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(ModTheme.textMuted)
                 }
-                .padding(20)
+                
+                Spacer()
             }
-            .navigationTitle("APP PERSONALIZADA")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { showManualPrompt = false }
-                        .foregroundColor(ModTheme.textPrimary)
+            
+            // Estado del Sandbox
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(isAccessible ? Color.white : ModTheme.textMuted)
+                    .frame(width: 6, height: 6)
+                
+                if let path = containerPath {
+                    Text("Sandbox accesible vía MHA-C2")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(ModTheme.textSecondary)
+                } else {
+                    Text("Sandbox se activará al seleccionar")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(ModTheme.textMuted)
                 }
             }
+            .padding(.leading, 4)
+            
+            // Botón Seleccionar
+            Button(action: {
+                HapticService.shared.lightTap()
+                selectedBundleID = bundleID
+                selectedAppName = name
+                dismiss()
+            }) {
+                HStack {
+                    Image(systemName: isSelected ? "checkmark" : "arrow.right.circle")
+                    Text(isSelected ? "JUEGO ACTUALMENTE SELECCIONADO" : "SELECCIONAR \(name.uppercased())")
+                }
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .frame(maxWidth: .infinity)
+            }
+            .minimalButton(isPrimary: !isSelected)
         }
+        .padding(16)
+        .background(ModTheme.surface)
+        .cornerRadius(ModTheme.cornerRadius)
+        .overlay(
+            RoundedRectangle(cornerRadius: ModTheme.cornerRadius)
+                .stroke(isSelected ? ModTheme.textPrimary : ModTheme.border, lineWidth: isSelected ? 2 : 1)
+        )
     }
 }

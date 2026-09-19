@@ -77,11 +77,27 @@ public final class ModEngine: ObservableObject {
         saveProfiles()
     }
     
+    // MARK: - Resolución de Ruta Destino (Archivos y Carpetas)
+    
+    public static func resolveItemTargetURL(containerRootURL: URL, item: ModItem) -> (targetURL: URL, effectiveRelativePath: String) {
+        let clean = item.sanitizedRelativePath
+        let isDir = item.isDirectory || item.relativePath.hasSuffix("/")
+        if isDir && !item.payloadFilename.isEmpty {
+            let folderURL = containerRootURL.appendingPathComponent(clean)
+            let fileURL = folderURL.appendingPathComponent(item.payloadFilename)
+            let effectivePath = clean.isEmpty ? item.payloadFilename : "\(clean)/\(item.payloadFilename)"
+            return (fileURL, effectivePath)
+        } else {
+            return (containerRootURL.appendingPathComponent(clean), clean)
+        }
+    }
+    
     // MARK: - Operaciones de Aplicación de Mods
     
     /// Aplica un Mod completo en el sandbox de la aplicación de destino
     public func applyMod(profile: ModProfile) async throws {
         await MainActor.run {
+            HapticService.shared.mediumImpact()
             self.isProcessing = true
             self.activeOperationMessage = "Aplicando mod: \(profile.name)..."
         }
@@ -94,47 +110,57 @@ public final class ModEngine: ObservableObject {
         }
         
         guard let containerPath = ContainerService.shared.resolveContainerPath(for: profile.targetBundleID) else {
+            await MainActor.run { HapticService.shared.error() }
             throw ModEngineError.containerNotFound(profile.targetBundleID)
         }
         
         let containerRootURL = URL(fileURLWithPath: containerPath, isDirectory: true)
         
-        for item in profile.items {
-            let targetURL = containerRootURL.appendingPathComponent(item.sanitizedRelativePath)
-            
-            // 1. Crear copia de seguridad automática del archivo original antes de tocar nada
-            _ = try BackupManager.shared.backupOriginal(
-                sourceURL: targetURL,
-                modID: profile.id,
-                bundleID: profile.targetBundleID,
-                relativePath: item.sanitizedRelativePath
-            )
-            
-            // 2. Obtener los datos de reemplazo (Mod)
-            guard let payloadData = item.payloadData, !payloadData.isEmpty else {
-                throw ModEngineError.payloadMissing
+        do {
+            for item in profile.items {
+                let resolved = Self.resolveItemTargetURL(containerRootURL: containerRootURL, item: item)
+                let targetURL = resolved.targetURL
+                let effectiveRelPath = resolved.effectiveRelativePath
+                
+                // 1. Crear copia de seguridad automática del archivo original antes de tocar nada
+                _ = try BackupManager.shared.backupOriginal(
+                    sourceURL: targetURL,
+                    modID: profile.id,
+                    bundleID: profile.targetBundleID,
+                    relativePath: effectiveRelPath
+                )
+                
+                // 2. Obtener los datos de reemplazo (Mod)
+                guard let payloadData = item.payloadData, !payloadData.isEmpty else {
+                    throw ModEngineError.payloadMissing
+                }
+                
+                // 3. Realizar reemplazo atómico
+                try performAtomicReplacement(data: payloadData, targetURL: targetURL)
             }
             
-            // 3. Realizar reemplazo atómico
-            try performAtomicReplacement(data: payloadData, targetURL: targetURL)
-        }
-        
-        await MainActor.run {
-            if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
-                self.modProfiles[idx].isApplied = true
-                self.modProfiles[idx].status = .applied
-                self.modProfiles[idx].lastRestoreSource = nil
-                self.modProfiles[idx].lastBackupDate = Date()
-                self.modProfiles[idx].updatedAt = Date()
-                self.saveProfiles()
+            await MainActor.run {
+                if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
+                    self.modProfiles[idx].isApplied = true
+                    self.modProfiles[idx].status = .applied
+                    self.modProfiles[idx].lastRestoreSource = nil
+                    self.modProfiles[idx].lastBackupDate = Date()
+                    self.modProfiles[idx].updatedAt = Date()
+                    self.saveProfiles()
+                }
+                HapticService.shared.success()
+                ModLog("Mod [\(profile.name)] aplicado exitosamente en \(profile.targetBundleID) (\(profile.items.count) elementos)", category: "ENG")
             }
-            ModLog("Mod [\(profile.name)] aplicado exitosamente en \(profile.targetBundleID)", category: "ENG")
+        } catch {
+            await MainActor.run { HapticService.shared.error() }
+            throw error
         }
     }
     
     /// Restaura el original desde el Backup Local
     public func restoreFromLocalBackup(profile: ModProfile) async throws {
         await MainActor.run {
+            HapticService.shared.mediumImpact()
             self.isProcessing = true
             self.activeOperationMessage = "Restaurando originales desde backup local..."
         }
@@ -147,40 +173,50 @@ public final class ModEngine: ObservableObject {
         }
         
         guard let containerPath = ContainerService.shared.resolveContainerPath(for: profile.targetBundleID) else {
+            await MainActor.run { HapticService.shared.error() }
             throw ModEngineError.containerNotFound(profile.targetBundleID)
         }
         
         let containerRootURL = URL(fileURLWithPath: containerPath, isDirectory: true)
         
-        for item in profile.items {
-            let targetURL = containerRootURL.appendingPathComponent(item.sanitizedRelativePath)
-            
-            let restored = try BackupManager.shared.restoreOriginal(
-                modID: profile.id,
-                targetURL: targetURL,
-                relativePath: item.sanitizedRelativePath
-            )
-            
-            if !restored {
-                throw ModEngineError.restoreFailed("No se encontró backup local para \(item.sanitizedRelativePath)")
+        do {
+            for item in profile.items {
+                let resolved = Self.resolveItemTargetURL(containerRootURL: containerRootURL, item: item)
+                let targetURL = resolved.targetURL
+                let effectiveRelPath = resolved.effectiveRelativePath
+                
+                let restored = try BackupManager.shared.restoreOriginal(
+                    modID: profile.id,
+                    targetURL: targetURL,
+                    relativePath: effectiveRelPath
+                )
+                
+                if !restored {
+                    throw ModEngineError.restoreFailed("No se encontró backup local para \(effectiveRelPath)")
+                }
             }
-        }
-        
-        await MainActor.run {
-            if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
-                self.modProfiles[idx].isApplied = false
-                self.modProfiles[idx].status = .ready
-                self.modProfiles[idx].lastRestoreSource = .localBackup
-                self.modProfiles[idx].updatedAt = Date()
-                self.saveProfiles()
+            
+            await MainActor.run {
+                if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
+                    self.modProfiles[idx].isApplied = false
+                    self.modProfiles[idx].status = .ready
+                    self.modProfiles[idx].lastRestoreSource = .localBackup
+                    self.modProfiles[idx].updatedAt = Date()
+                    self.saveProfiles()
+                }
+                HapticService.shared.success()
+                ModLog("Restauración local completada para [\(profile.name)]", category: "ENG")
             }
-            ModLog("Restauración local completada para [\(profile.name)]", category: "ENG")
+        } catch {
+            await MainActor.run { HapticService.shared.error() }
+            throw error
         }
     }
     
     /// Restaura el original descargándolo desde el Servidor Local IP:Puerto
     public func restoreFromServerOriginal(profile: ModProfile) async throws {
         await MainActor.run {
+            HapticService.shared.mediumImpact()
             self.isProcessing = true
             self.activeOperationMessage = "Descargando originales desde el servidor..."
         }
@@ -193,33 +229,42 @@ public final class ModEngine: ObservableObject {
         }
         
         guard let containerPath = ContainerService.shared.resolveContainerPath(for: profile.targetBundleID) else {
+            await MainActor.run { HapticService.shared.error() }
             throw ModEngineError.containerNotFound(profile.targetBundleID)
         }
         
         let containerRootURL = URL(fileURLWithPath: containerPath, isDirectory: true)
         
-        for item in profile.items {
-            let targetURL = containerRootURL.appendingPathComponent(item.sanitizedRelativePath)
-            
-            // Descargar stock original del servidor (lanza CloudRestoreError con detalle exacto)
-            let originalData = try await LocalServerClient.shared.downloadOriginalStockFile(
-                bundleID: profile.targetBundleID,
-                relativePath: item.sanitizedRelativePath
-            )
-            
-            // Reemplazo atómico con el archivo original del servidor
-            try performAtomicReplacement(data: originalData, targetURL: targetURL)
-        }
-        
-        await MainActor.run {
-            if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
-                self.modProfiles[idx].isApplied = false
-                self.modProfiles[idx].status = .ready
-                self.modProfiles[idx].lastRestoreSource = .server
-                self.modProfiles[idx].updatedAt = Date()
-                self.saveProfiles()
+        do {
+            for item in profile.items {
+                let resolved = Self.resolveItemTargetURL(containerRootURL: containerRootURL, item: item)
+                let targetURL = resolved.targetURL
+                let effectiveRelPath = resolved.effectiveRelativePath
+                
+                // Descargar stock original del servidor (lanza CloudRestoreError con detalle exacto)
+                let originalData = try await LocalServerClient.shared.downloadOriginalStockFile(
+                    bundleID: profile.targetBundleID,
+                    relativePath: effectiveRelPath
+                )
+                
+                // Reemplazo atómico con el archivo original del servidor
+                try performAtomicReplacement(data: originalData, targetURL: targetURL)
             }
-            ModLog("Restauración desde servidor completada para [\(profile.name)]", category: "ENG")
+            
+            await MainActor.run {
+                if let idx = self.modProfiles.firstIndex(where: { $0.id == profile.id }) {
+                    self.modProfiles[idx].isApplied = false
+                    self.modProfiles[idx].status = .ready
+                    self.modProfiles[idx].lastRestoreSource = .server
+                    self.modProfiles[idx].updatedAt = Date()
+                    self.saveProfiles()
+                }
+                HapticService.shared.success()
+                ModLog("Restauración desde servidor completada para [\(profile.name)]", category: "ENG")
+            }
+        } catch {
+            await MainActor.run { HapticService.shared.error() }
+            throw error
         }
     }
     

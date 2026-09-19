@@ -1,25 +1,57 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - Modelo de Edición para Elementos de un Mod (Lotes)
+public struct EditableModItem: Identifiable {
+    public let id: UUID
+    public var relativePath: String
+    public var isDirectory: Bool
+    public var payloadFilename: String
+    public var payloadData: Data?
+    public var payloadText: String
+    
+    public init(from item: ModItem) {
+        self.id = item.id
+        self.relativePath = item.relativePath
+        self.isDirectory = item.isDirectory
+        self.payloadFilename = item.payloadFilename
+        self.payloadData = item.payloadData
+        if let d = item.payloadData, let s = String(data: d, encoding: .utf8) {
+            self.payloadText = s
+        } else if let d = item.payloadData {
+            self.payloadText = "[Binario: \(d.count) bytes]"
+        } else {
+            self.payloadText = ""
+        }
+    }
+    
+    public init() {
+        self.id = UUID()
+        self.relativePath = ""
+        self.isDirectory = false
+        self.payloadFilename = ""
+        self.payloadData = nil
+        self.payloadText = ""
+    }
+}
+
 public struct ModEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var engine = ModEngine.shared
     @ObservedObject var containerService = ContainerService.shared
     
     @State private var modName: String = ""
-    @State private var targetBundleID: String = ""
-    @State private var selectedAppName: String = ""
-    @State private var relativePath: String = ""
-    @State private var isDirectory: Bool = false
-    @State private var payloadFilename: String = ""
-    @State private var payloadText: String = ""
-    @State private var payloadData: Data? = nil
+    @State private var targetBundleID: String = "com.dts.freefiremax"
+    @State private var selectedAppName: String = "Free Fire MAX"
+    
+    // Lista de archivos del lote (Punto 5)
+    @State private var modItems: [EditableModItem] = [EditableModItem()]
     
     @State private var showAppPicker: Bool = false
     @State private var showSandboxBrowser: Bool = false
     @State private var showFilePicker: Bool = false
+    @State private var activeItemIndex: Int = 0
     @State private var errorMessage: String?
-    @State private var copiedFeedback: Bool = false
     
     var existingProfile: ModProfile?
     
@@ -28,20 +60,10 @@ public struct ModEditorSheet: View {
         if let p = existingProfile {
             _modName = State(initialValue: p.name)
             _targetBundleID = State(initialValue: p.targetBundleID)
-            if let firstItem = p.items.first {
-                _relativePath = State(initialValue: firstItem.relativePath)
-                _isDirectory = State(initialValue: firstItem.isDirectory)
-                _payloadFilename = State(initialValue: firstItem.payloadFilename)
-                _payloadData = State(initialValue: firstItem.payloadData)
-                if let d = firstItem.payloadData, let str = String(data: d, encoding: .utf8) {
-                    _payloadText = State(initialValue: str)
-                }
-            }
+            _selectedAppName = State(initialValue: p.targetBundleID == "com.dts.freefireth" ? "Free Fire" : "Free Fire MAX")
+            let mapped = p.items.isEmpty ? [EditableModItem()] : p.items.map { EditableModItem(from: $0) }
+            _modItems = State(initialValue: mapped)
         }
-    }
-    
-    private var pathValidation: PathValidationInfo {
-        containerService.validatePath(bundleID: targetBundleID, relativePath: relativePath)
     }
     
     public var body: some View {
@@ -57,7 +79,7 @@ public struct ModEditorSheet: View {
                             Text("NOMBRE DEL MOD")
                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .foregroundColor(ModTheme.textSecondary)
-                            TextField("Ej: Monedas Ilimitadas / Texturas HD", text: $modName)
+                            TextField("Ej: Texturas Armas / Gráficos Ultra", text: $modName)
                                 .font(.system(size: 14, design: .monospaced))
                                 .padding(12)
                                 .background(ModTheme.surface)
@@ -66,166 +88,80 @@ public struct ModEditorSheet: View {
                                 .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
                         }
                         
-                        // Section 2: Target App
+                        // Section 2: Target App (Free Fire Exclusivo)
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("APLICACIÓN DESTINO")
+                            Text("JUEGO DESTINO")
                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .foregroundColor(ModTheme.textSecondary)
                             
                             HStack {
-                                TextField("Bundle ID (ej: com.company.game)", text: $targetBundleID)
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .foregroundColor(ModTheme.textPrimary)
-                                
-                                Button("Seleccionar App") {
-                                    showAppPicker = true
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(selectedAppName)
+                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                        .foregroundColor(ModTheme.textPrimary)
+                                    Text(targetBundleID)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(ModTheme.textSecondary)
                                 }
-                                .minimalButton(isPrimary: false)
-                            }
-                            .padding(8)
-                            .background(ModTheme.surface)
-                            .cornerRadius(ModTheme.cornerRadiusSmall)
-                            .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
-                            
-                            if !selectedAppName.isEmpty {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "app.badge.checkmark")
-                                        .font(.system(size: 11))
-                                    Text("App seleccionada: \(selectedAppName)")
-                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                }
-                                .foregroundColor(ModTheme.textSecondary)
-                                .padding(.leading, 4)
-                            }
-                        }
-                        
-                        // Section 3: Exact Target Path & Sandbox Explorer
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("RUTA EXACTA EN EL SANDBOX")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundColor(ModTheme.textSecondary)
                                 
                                 Spacer()
                                 
-                                // Botón para abrir el explorador de archivos del sandbox
-                                Button(action: {
-                                    if targetBundleID.trimmingCharacters(in: .whitespaces).isEmpty {
-                                        errorMessage = "Selecciona primero una aplicación para explorar su sandbox."
-                                    } else {
-                                        showSandboxBrowser = true
-                                    }
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "folder.badge.gearshape")
-                                        Text("Explorar Sandbox")
-                                    }
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .foregroundColor(ModTheme.textPrimary)
+                                Button("Cambiar Juego") {
+                                    HapticService.shared.lightTap()
+                                    showAppPicker = true
                                 }
-                            }
-                            
-                            HStack {
-                                TextField("Ej: Documents/game_save.dat", text: $relativePath)
-                                    .font(.system(size: 13, design: .monospaced))
-                                    .foregroundColor(ModTheme.textPrimary)
-                                
-                                if !relativePath.isEmpty {
-                                    // Copiar ruta rápida
-                                    Button(action: {
-                                        UIPasteboard.general.string = relativePath
-                                        let impact = UIImpactFeedbackGenerator(style: .light)
-                                        impact.impactOccurred()
-                                        copiedFeedback = true
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                            copiedFeedback = false
-                                        }
-                                    }) {
-                                        Image(systemName: copiedFeedback ? "checkmark" : "doc.on.doc")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(copiedFeedback ? ModTheme.textPrimary : ModTheme.textSecondary)
-                                    }
-                                    .padding(.trailing, 4)
-                                }
+                                .minimalButton(isPrimary: false)
                             }
                             .padding(12)
                             .background(ModTheme.surface)
                             .cornerRadius(ModTheme.cornerRadiusSmall)
                             .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
-                            
-                            // Comprobador dinámico de estado de la ruta
-                            if !targetBundleID.isEmpty && !relativePath.isEmpty {
-                                pathValidationBadge(info: pathValidation)
-                            }
-                            
-                            Text("Ruta relativa dentro de Data/Application/<UUID>/")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(ModTheme.textMuted)
                         }
                         
-                        // Section 4: Replacement Content
-                        VStack(alignment: .leading, spacing: 8) {
+                        // Section 3: Mod Items (Lotes / Múltiples Elementos)
+                        VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Text("CONTENIDO DE REEMPLAZO")
+                                Text("ARCHIVOS DEL MOD (\(modItems.count))")
                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                     .foregroundColor(ModTheme.textSecondary)
+                                
                                 Spacer()
-                                Button("Importar archivo") {
-                                    showFilePicker = true
-                                }
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                .foregroundColor(ModTheme.textPrimary)
-                            }
-                            
-                            if !payloadFilename.isEmpty {
-                                HStack {
-                                    Image(systemName: "doc.fill")
-                                        .foregroundColor(ModTheme.textPrimary)
-                                    Text(payloadFilename)
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundColor(ModTheme.textPrimary)
-                                    Spacer()
-                                    if let bytes = payloadData?.count {
-                                        Text("\(bytes) bytes")
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundColor(ModTheme.textSecondary)
+                                
+                                Button(action: {
+                                    HapticService.shared.lightTap()
+                                    modItems.append(EditableModItem())
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus.circle")
+                                        Text("Añadir Archivo")
                                     }
                                 }
-                                .padding(10)
-                                .background(ModTheme.surfaceSecondary)
-                                .cornerRadius(ModTheme.cornerRadiusSmall)
+                                .minimalButton(isPrimary: false)
                             }
                             
-                            // Editor de texto/código integrado para mods ligeros (json, plist, txt)
-                            TextEditor(text: $payloadText)
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(ModTheme.textPrimary)
-                                .frame(height: 120)
-                                .padding(8)
-                                .background(ModTheme.surface)
-                                .cornerRadius(ModTheme.cornerRadiusSmall)
-                                .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
-                                .onChange(of: payloadText) { val in
-                                    payloadData = val.data(using: .utf8)
-                                    if payloadFilename.isEmpty {
-                                        payloadFilename = "custom_mod.txt"
-                                    }
-                                }
+                            ForEach(Array(modItems.indices), id: \.self) { idx in
+                                itemEditorCard(index: idx)
+                            }
                         }
                         
                         if let err = errorMessage {
                             Text(err)
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundColor(ModTheme.destructive)
+                                .padding(.horizontal, 4)
                         }
                         
                         // Save Button
                         Button(action: saveMod) {
-                            Text("GUARDAR MOD")
-                                .frame(maxWidth: .infinity)
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("GUARDAR MOD (\(modItems.count) ELEMENTOS)")
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                         .minimalButton(isPrimary: true)
                         .padding(.top, 10)
+                        .padding(.bottom, 30)
                     }
                     .padding(20)
                 }
@@ -234,9 +170,12 @@ public struct ModEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
-                        .foregroundColor(ModTheme.textPrimary)
-                        .font(.system(size: 14, design: .monospaced))
+                    Button("Cancelar") {
+                        HapticService.shared.lightTap()
+                        dismiss()
+                    }
+                    .foregroundColor(ModTheme.textPrimary)
+                    .font(.system(size: 14, design: .monospaced))
                 }
             }
             .sheet(isPresented: $showAppPicker) {
@@ -246,21 +185,24 @@ public struct ModEditorSheet: View {
                 )
             }
             .sheet(isPresented: $showSandboxBrowser) {
-                SandboxBrowserSheet(
-                    bundleID: targetBundleID,
-                    appName: selectedAppName,
-                    selectedRelativePath: $relativePath
-                )
+                if activeItemIndex < modItems.count {
+                    SandboxBrowserSheet(
+                        bundleID: targetBundleID,
+                        appName: selectedAppName,
+                        selectedRelativePath: $modItems[activeItemIndex].relativePath
+                    )
+                }
             }
             .sheet(isPresented: $showFilePicker) {
                 DocumentPicker { url in
-                    if let data = try? Data(contentsOf: url) {
-                        self.payloadData = data
-                        self.payloadFilename = url.lastPathComponent
+                    if let data = try? Data(contentsOf: url), activeItemIndex < modItems.count {
+                        HapticService.shared.lightTap()
+                        modItems[activeItemIndex].payloadData = data
+                        modItems[activeItemIndex].payloadFilename = url.lastPathComponent
                         if let str = String(data: data, encoding: .utf8) {
-                            self.payloadText = str
+                            modItems[activeItemIndex].payloadText = str
                         } else {
-                            self.payloadText = "[Archivo binario: \(data.count) bytes]"
+                            modItems[activeItemIndex].payloadText = "[Archivo binario: \(data.count) bytes]"
                         }
                     }
                 }
@@ -268,30 +210,146 @@ public struct ModEditorSheet: View {
         }
     }
     
-    // MARK: - Path Validation Badge
+    // MARK: - Tarjeta de Edición de Cada Archivo del Lote
+    @ViewBuilder
+    private func itemEditorCard(index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("ELEMENTO #\(index + 1)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(ModTheme.textPrimary)
+                
+                Spacer()
+                
+                if modItems.count > 1 {
+                    Button(action: {
+                        HapticService.shared.lightTap()
+                        modItems.remove(at: index)
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12))
+                            .foregroundColor(ModTheme.destructive)
+                    }
+                }
+            }
+            
+            // Ruta exacta o Carpeta
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("RUTA O CARPETA EN SANDBOX")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(ModTheme.textSecondary)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        HapticService.shared.lightTap()
+                        activeItemIndex = index
+                        showSandboxBrowser = true
+                    }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "folder.badge.gearshape")
+                            Text("Explorar")
+                        }
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(ModTheme.textPrimary)
+                    }
+                }
+                
+                TextField("Ej: Documents/content/ o Documents/skin.bytes", text: $modItems[index].relativePath)
+                    .font(.system(size: 12, design: .monospaced))
+                    .padding(10)
+                    .background(ModTheme.surfaceSecondary)
+                    .foregroundColor(ModTheme.textPrimary)
+                    .cornerRadius(ModTheme.cornerRadiusSmall)
+                    .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+            }
+            
+            // Validación de Ruta
+            let validation = containerService.validatePath(bundleID: targetBundleID, relativePath: modItems[index].relativePath)
+            pathValidationBadge(info: validation)
+            
+            // Archivo de Reemplazo
+            VStack(alignment: .leading, spacing: 6) {
+                Text("CONTENIDO / ARCHIVO DE REEMPLAZO")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(ModTheme.textSecondary)
+                
+                HStack {
+                    if !modItems[index].payloadFilename.isEmpty {
+                        Image(systemName: "doc.fill")
+                            .foregroundColor(ModTheme.textPrimary)
+                        Text(modItems[index].payloadFilename)
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundColor(ModTheme.textPrimary)
+                            .lineLimit(1)
+                    } else {
+                        Text("Ningún archivo cargado")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(ModTheme.textMuted)
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Cargar Archivo") {
+                        HapticService.shared.lightTap()
+                        activeItemIndex = index
+                        showFilePicker = true
+                    }
+                    .minimalButton(isPrimary: false)
+                }
+                .padding(10)
+                .background(ModTheme.surfaceSecondary)
+                .cornerRadius(ModTheme.cornerRadiusSmall)
+                .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadiusSmall).stroke(ModTheme.border, lineWidth: 1))
+                
+                // Editor de texto alternativo si es texto plano
+                if modItems[index].payloadData == nil || modItems[index].payloadText.starts(with: "[Archivo binario:") == false {
+                    TextField("O pega contenido de texto plano aquí...", text: $modItems[index].payloadText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .padding(8)
+                        .background(ModTheme.surfaceSecondary)
+                        .foregroundColor(ModTheme.textPrimary)
+                        .cornerRadius(4)
+                        .onChange(of: modItems[index].payloadText) { val in
+                            modItems[index].payloadData = val.data(using: .utf8)
+                            if modItems[index].payloadFilename.isEmpty {
+                                modItems[index].payloadFilename = "config_override.txt"
+                            }
+                        }
+                }
+            }
+        }
+        .padding(14)
+        .background(ModTheme.surface)
+        .cornerRadius(ModTheme.cornerRadius)
+        .overlay(RoundedRectangle(cornerRadius: ModTheme.cornerRadius).stroke(ModTheme.border, lineWidth: 1))
+    }
+    
+    // MARK: - Badge de Validación
     private func pathValidationBadge(info: PathValidationInfo) -> some View {
         HStack(spacing: 8) {
             Image(systemName: iconForValidation(info.status))
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(info.title.uppercased())
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
                     if let size = info.formattedSize {
                         Text("(\(size))")
-                            .font(.system(size: 10, design: .monospaced))
+                            .font(.system(size: 9, design: .monospaced))
                             .foregroundColor(ModTheme.textMuted)
                     }
                 }
                 Text(info.message)
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 9, design: .monospaced))
                     .foregroundColor(ModTheme.textSecondary)
             }
             
             Spacer()
         }
-        .padding(10)
+        .padding(8)
         .background(ModTheme.surfaceSecondary)
         .cornerRadius(6)
         .overlay(
@@ -302,54 +360,58 @@ public struct ModEditorSheet: View {
     
     private func iconForValidation(_ status: PathValidationInfo.Status) -> String {
         switch status {
-        case .fileExists:
-            return "checkmark.circle.fill"
-        case .directoryExists:
-            return "folder.badge.person.crop"
-        case .parentExists:
-            return "plus.circle.fill"
-        case .targetNotFound:
-            return "exclamationmark.circle"
-        case .containerInaccessible:
-            return "xmark.octagon.fill"
+        case .fileExists: return "checkmark.circle.fill"
+        case .directoryExists: return "folder.badge.checkmark"
+        case .parentExists: return "plus.circle.fill"
+        case .targetNotFound: return "questionmark.circle"
+        case .containerInaccessible: return "xmark.octagon.fill"
         }
     }
     
+    // MARK: - Guardar Mod con Lotes
     private func saveMod() {
         guard !modName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            HapticService.shared.warning()
             errorMessage = "Introduce un nombre para el Mod."
             return
         }
-        guard !targetBundleID.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Introduce el bundle ID de la aplicación."
-            return
-        }
-        guard !relativePath.trimmingCharacters(in: .whitespaces).isEmpty else {
-            errorMessage = "Especifica la ruta exacta en el sandbox."
-            return
-        }
         
-        let finalData = payloadData ?? payloadText.data(using: .utf8) ?? Data()
-        guard !finalData.isEmpty else {
-            errorMessage = "Debes proporcionar contenido o un archivo de reemplazo."
-            return
+        var validatedItems: [ModItem] = []
+        for (i, item) in modItems.enumerated() {
+            let rel = item.relativePath.trimmingCharacters(in: .whitespaces)
+            guard !rel.isEmpty else {
+                HapticService.shared.warning()
+                errorMessage = "El elemento #\(i + 1) debe tener una ruta o carpeta destino."
+                return
+            }
+            let data = item.payloadData ?? item.payloadText.data(using: .utf8) ?? Data()
+            guard !data.isEmpty else {
+                HapticService.shared.warning()
+                errorMessage = "El elemento #\(i + 1) no tiene archivo ni contenido cargado."
+                return
+            }
+            
+            let isDir = item.isDirectory || rel.hasSuffix("/")
+            let filename = item.payloadFilename.isEmpty ? "mod_payload_\(i + 1).bin" : item.payloadFilename
+            
+            validatedItems.append(ModItem(
+                id: item.id,
+                relativePath: rel,
+                isDirectory: isDir,
+                payloadFilename: filename,
+                payloadData: data
+            ))
         }
-        
-        let item = ModItem(
-            relativePath: relativePath,
-            isDirectory: isDirectory,
-            payloadFilename: payloadFilename.isEmpty ? "mod_payload.bin" : payloadFilename,
-            payloadData: finalData
-        )
         
         let profile = ModProfile(
             id: existingProfile?.id ?? UUID(),
             name: modName,
             targetBundleID: targetBundleID,
-            items: [item]
+            items: validatedItems
         )
         
         engine.addOrUpdateProfile(profile)
+        HapticService.shared.success()
         dismiss()
     }
 }

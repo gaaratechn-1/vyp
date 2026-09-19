@@ -150,6 +150,48 @@ class ModServerHandler(http.server.BaseHTTPRequestHandler):
         sys.stdout.write(f"[HTTP] {self.address_string()} - {format % args}\n")
         sys.stdout.flush()
 
+import threading
+import time
+
+def start_udp_broadcast_beacon(http_port, beacon_port=8081):
+    def beacon_worker():
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        while True:
+            try:
+                local_ip = get_local_ip()
+                payload = f"MODMANAGER_BEACON:http://{local_ip}:{http_port}".encode('utf-8')
+                sock.sendto(payload, ('<broadcast>', beacon_port))
+            except Exception:
+                pass
+            time.sleep(3)
+            
+    t = threading.Thread(target=beacon_worker, daemon=True)
+    t.start()
+    print(f"[BEACON] Transmitiendo baliza de auto-descubrimiento en puerto UDP {beacon_port}")
+
+def start_bonjour_advertisement(port):
+    try:
+        from zeroconf import IPVersion, ServiceInfo, Zeroconf
+        local_ip = get_local_ip()
+        desc = {"version": "1.0", "app": "ModManager"}
+        info = ServiceInfo(
+            "_modmanager._tcp.local.",
+            f"ModManager Server._modmanager._tcp.local.",
+            addresses=[socket.inet_aton(local_ip)],
+            port=port,
+            properties=desc,
+            server=f"{socket.gethostname().split('.')[0]}.local."
+        )
+        zc = Zeroconf(ip_version=IPVersion.V4Only)
+        zc.register_service(info)
+        print(f"[BONJOUR] Anuncio mDNS activo: _modmanager._tcp.local. en {local_ip}:{port}")
+        return zc
+    except Exception as e:
+        print(f"[BONJOUR] Nota: Soporte zeroconf opcional no activo ({e}). Respaldo UDP activo.")
+        return None
+
 def run():
     ip = get_local_ip()
     port = PORT
@@ -173,11 +215,23 @@ def run():
     print("Coloca tus archivos mod en:        mods_repo/<id>.bin")
     print("Presiona Ctrl+C para detener el servidor.\n")
 
+    # Iniciar anuncio Bonjour y Baliza UDP
+    zc = start_bonjour_advertisement(port)
+    start_udp_broadcast_beacon(port)
+
+    # Permitir reusar puerto inmediatamente
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("0.0.0.0", port), ModServerHandler) as httpd:
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nDeteniendo servidor...")
+            if zc:
+                try:
+                    zc.close()
+                except Exception:
+                    pass
 
 if __name__ == '__main__':
     run()
+

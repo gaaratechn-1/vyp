@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Network
 
 // MARK: - Cloud / Server Specific Restore Errors
 public enum CloudRestoreError: LocalizedError {
@@ -64,8 +65,15 @@ public final class LocalServerClient: ObservableObject {
     @Published public var connectionStatusMessage: String?
     @Published public var availableServerMods: [ServerModDTO] = []
     
+    // Píldora de estado en tiempo real (Punto 1)
+    @Published public var isOnline: Bool = false
+    @Published public var discoveredAddress: String? = nil
+    
     private let configStorageKey = "com.modmanager.server.config.v2"
     private let session: URLSession
+    private var browser: NWBrowser?
+    private var udpListener: NWListener?
+    private var pingTimer: Timer?
     
     private init() {
         if let data = UserDefaults.standard.data(forKey: configStorageKey),
@@ -77,9 +85,14 @@ public final class LocalServerClient: ObservableObject {
         }
         
         let sessionConfig = URLSessionConfiguration.default
-        sessionConfig.timeoutIntervalForRequest = 8
-        sessionConfig.timeoutIntervalForResource = 20
+        sessionConfig.timeoutIntervalForRequest = 4
+        sessionConfig.timeoutIntervalForResource = 15
         self.session = URLSession(configuration: sessionConfig)
+        
+        // Iniciar auto-descubrimiento en segundo plano
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.startAutoDiscovery()
+        }
     }
     
     private func saveConfig() {
@@ -94,6 +107,99 @@ public final class LocalServerClient: ObservableObject {
         ModLog("Configuración de servidor restablecida al valor predeterminado permanente: \(config.baseEndpoint)", category: "NET")
     }
     
+    // MARK: - Auto-Descubrimiento Bonjour / mDNS & Beacon UDP (Punto 1)
+    
+    public func startAutoDiscovery() {
+        startBonjourBrowser()
+        startUDPBeaconListener()
+        startPeriodicPing()
+    }
+    
+    private func startBonjourBrowser() {
+        let descriptor = NWBrowser.Descriptor.bonjour(type: "_modmanager._tcp", domain: nil)
+        let params = NWParameters()
+        let b = NWBrowser(for: descriptor, using: params)
+        b.browseResultsChangedHandler = { [weak self] results, _ in
+            for result in results {
+                if case let .service(name, _, _, _) = result.endpoint {
+                    ModLog("Bonjour: Servidor local encontrado: \(name)", category: "NET")
+                    self?.resolveBonjourService(result.endpoint)
+                }
+            }
+        }
+        b.start(queue: .main)
+        self.browser = b
+    }
+    
+    private func resolveBonjourService(_ endpoint: NWEndpoint) {
+        let connection = NWConnection(to: endpoint, using: .tcp)
+        connection.stateUpdateHandler = { [weak self] state in
+            guard let self = self else { return }
+            if case .ready = state {
+                if let remote = connection.currentPath?.remoteEndpoint,
+                   case let .hostPort(host, port) = remote {
+                    let hostString: String
+                    switch host {
+                    case .ipv4(let ip4): hostString = "\(ip4)"
+                    case .ipv6(let ip6): hostString = "\(ip6)"
+                    default: hostString = "\(host)"
+                    }
+                    self.applyDiscoveredServer(host: hostString, port: Int(port.rawValue))
+                }
+                connection.cancel()
+            }
+        }
+        connection.start(queue: .main)
+    }
+    
+    private func startUDPBeaconListener() {
+        do {
+            let params = NWParameters.udp
+            params.allowLocalEndpointReuse = true
+            let listener = try NWListener(using: params, on: 8081)
+            listener.newConnectionHandler = { [weak self] conn in
+                conn.start(queue: .main)
+                conn.receive(minimumIncompleteLength: 1, maximumLength: 1024) { data, _, _, _ in
+                    if let data = data, let str = String(data: data, encoding: .utf8), str.hasPrefix("MODMANAGER_BEACON:") {
+                        let urlStr = String(str.dropFirst("MODMANAGER_BEACON:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                        if let u = URL(string: urlStr), let h = u.host, let p = u.port {
+                            self?.applyDiscoveredServer(host: h, port: p)
+                        }
+                    }
+                    conn.cancel()
+                }
+            }
+            listener.start(queue: .main)
+            self.udpListener = listener
+        } catch {
+            ModLog("Listener UDP no iniciado: \(error.localizedDescription)", category: "NET")
+        }
+    }
+    
+    private func applyDiscoveredServer(host: String, port: Int) {
+        DispatchQueue.main.async {
+            if self.config.host != host || self.config.port != port {
+                ModLog("Servidor local descubierto automáticamente: \(host):\(port)", category: "NET")
+                self.config.host = host
+                self.config.port = port
+                self.discoveredAddress = "\(host):\(port)"
+            }
+            Task {
+                _ = await self.testConnection()
+            }
+        }
+    }
+    
+    private func startPeriodicPing() {
+        Task { _ = await self.testConnection() }
+        pingTimer?.invalidate()
+        pingTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { [weak self] _ in
+            Task {
+                _ = await self?.testConnection()
+            }
+        }
+    }
+    
     /// Prueba la conexión con el servidor local IP:Puerto
     public func testConnection() async -> Bool {
         await MainActor.run {
@@ -106,6 +212,7 @@ public final class LocalServerClient: ObservableObject {
                 self.isTestingConnection = false
                 self.connectionStatusMessage = "URL inválida (\(config.baseEndpoint))"
                 self.config.isConnected = false
+                self.isOnline = false
             }
             return false
         }
@@ -123,6 +230,7 @@ public final class LocalServerClient: ObservableObject {
                     self.isTestingConnection = false
                     self.connectionStatusMessage = "Servidor respondió con código de error"
                     self.config.isConnected = false
+                    self.isOnline = false
                 }
                 return false
             }
@@ -134,15 +242,17 @@ public final class LocalServerClient: ObservableObject {
                 self.connectionStatusMessage = "Servidor Online (\(status))"
                 self.config.isConnected = true
                 self.config.lastSyncDate = Date()
+                self.isOnline = true
+                self.discoveredAddress = "\(self.config.host):\(self.config.port)"
                 ModLog("Conexión exitosa al servidor local: \(self.config.baseEndpoint)", category: "NET")
             }
             return true
         } catch {
             await MainActor.run {
                 self.isTestingConnection = false
-                self.connectionStatusMessage = "Servidor Desconectado / Offline"
+                self.connectionStatusMessage = "Sin conexión: \(error.localizedDescription)"
                 self.config.isConnected = false
-                ModLog("Fallo de conexión con \(self.config.baseEndpoint): \(error.localizedDescription)", category: "NET")
+                self.isOnline = false
             }
             return false
         }

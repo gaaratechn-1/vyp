@@ -121,6 +121,27 @@ public struct SandboxBrowserSheet: View {
                             .truncationMode(.head)
                         
                         Spacer()
+                        
+                        // Botón de 1 toque: Establecer esta carpeta como destino
+                        Button(action: {
+                            HapticService.shared.lightTap()
+                            selectedRelativePath = currentSubpath
+                            toast("Carpeta seleccionada como destino")
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                dismiss()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Usar esta carpeta")
+                            }
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(ModTheme.background)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(ModTheme.textPrimary)
+                            .cornerRadius(4)
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -290,8 +311,48 @@ public struct SandboxBrowserSheet: View {
                 }
                 
                 if item.isDirectory {
+                    Menu {
+                        Button(action: {
+                            HapticService.shared.lightTap()
+                            selectedRelativePath = item.relativePath
+                            toast("Carpeta seleccionada como destino")
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                dismiss()
+                            }
+                        }) {
+                            Label("Usar como Carpeta Destino", systemImage: "folder.badge.checkmark")
+                        }
+                        Button(action: {
+                            HapticService.shared.lightTap()
+                            currentSubpath = item.relativePath
+                            searchText = ""
+                        }) {
+                            Label("Abrir Carpeta", systemImage: "folder")
+                        }
+                        Button(action: { copyToClipboard(text: item.relativePath, label: "Ruta relativa") }) {
+                            Label("Copiar Ruta Relativa", systemImage: "doc.on.doc")
+                        }
+                        Button(action: { copyToClipboard(text: item.fullPath, label: "Ruta absoluta") }) {
+                            Label("Copiar Ruta Absoluta", systemImage: "link")
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text("Elegir")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8))
+                        }
+                        .foregroundColor(ModTheme.textPrimary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(ModTheme.surfaceSecondary)
+                        .cornerRadius(6)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(ModTheme.border, lineWidth: 1))
+                    }
+                    
                     // Navigate inside directory
                     Button(action: {
+                        HapticService.shared.lightTap()
                         currentSubpath = item.relativePath
                         searchText = ""
                     }) {
@@ -306,9 +367,12 @@ public struct SandboxBrowserSheet: View {
                 } else {
                     // Select file directly
                     Button(action: {
+                        HapticService.shared.lightTap()
                         selectedRelativePath = item.relativePath
                         copyToClipboard(text: item.relativePath, label: "Ruta seleccionada y copiada")
-                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            dismiss()
+                        }
                     }) {
                         Text("Elegir")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -327,6 +391,7 @@ public struct SandboxBrowserSheet: View {
     // MARK: - Actions
     
     private func goUpOneLevel() {
+        HapticService.shared.lightTap()
         let parts = currentSubpath.split(separator: "/")
         if parts.count <= 1 {
             currentSubpath = ""
@@ -339,8 +404,7 @@ public struct SandboxBrowserSheet: View {
     
     private func copyToClipboard(text: String, label: String) {
         UIPasteboard.general.string = text
-        let impact = UIImpactFeedbackGenerator(style: .medium)
-        impact.impactOccurred()
+        HapticService.shared.lightTap()
         
         toastMessage = "\(label): \(text)"
         showToast = true
