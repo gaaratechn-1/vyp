@@ -194,8 +194,9 @@ public final class LocalServerClient: ObservableObject {
         Task { _ = await self.testConnection() }
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { [weak self] _ in
+            guard let client = self else { return }
             Task {
-                _ = await self?.testConnection()
+                _ = await client.testConnection()
             }
         }
     }

@@ -29,6 +29,12 @@ public struct ServerConfig: Codable, Equatable {
         self.lastSyncDate = lastSyncDate
     }
     
+    /// Alias de compatibilidad para ipAddress
+    public var host: String {
+        get { ipAddress }
+        set { ipAddress = newValue }
+    }
+    
     public var isPermanentDefault: Bool {
         return ipAddress == ServerConfig.defaultIPAddress && port == ServerConfig.defaultPort && !useHttps
     }

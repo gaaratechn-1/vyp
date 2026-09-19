@@ -402,18 +402,20 @@ public struct SandboxBrowserSheet: View {
         searchText = ""
     }
     
-    private func copyToClipboard(text: String, label: String) {
-        UIPasteboard.general.string = text
-        HapticService.shared.lightTap()
-        
-        toastMessage = "\(label): \(text)"
+    private func toast(_ message: String) {
+        toastMessage = message
         showToast = true
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
             withAnimation {
                 showToast = false
             }
         }
+    }
+    
+    private func copyToClipboard(text: String, label: String) {
+        UIPasteboard.general.string = text
+        HapticService.shared.lightTap()
+        toast("\(label): \(text)")
     }
     
     private func iconForFile(_ name: String) -> String {

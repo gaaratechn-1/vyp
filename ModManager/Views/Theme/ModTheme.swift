@@ -23,6 +23,7 @@ public enum ModTheme {
     public static let cornerRadiusSmall: CGFloat = 8
     public static let cornerRadiusMedium: CGFloat = 14
     public static let cornerRadiusLarge: CGFloat = 20
+    public static let cornerRadius: CGFloat = 14
 }
 
 // MARK: - Color Hex Initializer
