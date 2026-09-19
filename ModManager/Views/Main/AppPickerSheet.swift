@@ -215,6 +215,11 @@ public struct AppPickerSheet: View {
             .sheet(isPresented: $showManualPrompt) {
                 manualEntryView
             }
+            .onAppear {
+                if containerService.installedApps.isEmpty {
+                    containerService.refreshApps()
+                }
+            }
         }
     }
     

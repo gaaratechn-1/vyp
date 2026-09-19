@@ -35,4 +35,15 @@ int64_t MCMActivateContainer(
     NSString * _Nullable * _Nullable error
 );
 
+/// Retorna información de aplicaciones instaladas (LaunchServices / MobileInstallation).
+/// Mapeo bundleID -> @{ @"name": NSString, @"container": NSString, @"version": NSString }
+NSDictionary<NSString *, NSDictionary *> *MCMInstalledAppInfo(void);
+
+/// Retorna @{ @"name": NSString, @"container": NSString } para un bundle ID vía LSApplicationProxy.
+NSDictionary *MCMAppInfoForBundleID(NSString *bundleID);
+
+/// Enumera directorios en una ruta mediante fsgetpath (método 3105 bad_query_list para saltar restricciones de sandbox en /var/mobile/Containers/Data/Application)
+NSArray<NSString *> *MCMEnumerateDirectoriesViaFSGetPath(NSString *basePath, int64_t maxInode);
+
 NS_ASSUME_NONNULL_END
+

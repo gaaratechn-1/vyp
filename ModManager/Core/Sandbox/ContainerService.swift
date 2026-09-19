@@ -82,7 +82,67 @@ public struct PathValidationInfo: Equatable {
     }
 }
 
-// MARK: - Container Service
+// MARK: - 3105 LaunchServices CSStore Candidate Extractor
+fileprivate enum LaunchServicesCandidateExtractor {
+    private static func isIdentifierByte(_ byte: UInt8) -> Bool {
+        switch byte {
+        case 45, 46, 48...57, 65...90, 95, 97...122: // '-', '.', '0'-'9', 'A'-'Z', '_', 'a'-'z'
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func identifiers(from data: Data, limit: Int = 32_768) -> [String] {
+        guard limit > 0, !data.isEmpty else { return [] }
+
+        return data.withUnsafeBytes { rawBuffer in
+            let bytes = rawBuffer.bindMemory(to: UInt8.self)
+            var result: [String] = []
+            var seen = Set<String>()
+            var index = 0
+
+            while index < bytes.count, result.count < limit {
+                guard isIdentifierByte(bytes[index]) else {
+                    index += 1
+                    continue
+                }
+
+                let start = index
+                while index < bytes.count, isIdentifierByte(bytes[index]) {
+                    index += 1
+                }
+                let length = index - start
+                guard (3...255).contains(length),
+                      let identifier = String(bytes: bytes[start..<index], encoding: .utf8),
+                      isValidBundleIdentifier(identifier),
+                      !identifier.hasPrefix("group."),
+                      !identifier.hasPrefix("systemgroup."),
+                      seen.insert(identifier).inserted else {
+                    continue
+                }
+                result.append(identifier)
+            }
+
+            return result
+        }
+    }
+
+    static func isValidBundleIdentifier(_ value: String) -> Bool {
+        guard !value.isEmpty,
+              value.utf8.count <= 255,
+              value.contains("."),
+              !value.contains(".."),
+              value.first != ".",
+              value.last != "." else {
+            return false
+        }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-_"))
+        return value.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+}
+
+// MARK: - Container Service (Implementación 3105 MHA-C2)
 public final class ContainerService: ObservableObject {
     public static let shared = ContainerService()
     
@@ -90,18 +150,43 @@ public final class ContainerService: ObservableObject {
     @Published public private(set) var isScanning: Bool = false
     @Published public private(set) var isMCMBridgeAvailable: Bool = false
     
-    private let appDataRoots = [
-        "/var/mobile/Containers/Data/Application",
-        "/private/var/mobile/Containers/Data/Application"
-    ]
-    
-    private let appBundleRoots = [
-        "/var/containers/Bundle/Application",
-        "/private/var/containers/Bundle/Application"
-    ]
+    public static let appDataRoot = "/var/mobile/Containers/Data/Application"
     
     private var containerCache: [String: String] = [:]
     private let cacheLock = NSLock()
+    
+    // Catálogo 3105 de aplicaciones comunes y juegos populares
+    public static let researchAppIdentifiers: [String] = [
+        // Juegos Populares
+        "com.dts.freefireth", "com.dts.freefiremax", "com.tencent.ig", "com.pubg.krmobile",
+        "com.activision.callofduty.shooter", "com.roblox.robloxmobile", "com.mojang.minecraftpe",
+        "com.supercell.brawlstars", "com.supercell.clashroyale", "com.supercell.clashofclans",
+        "com.miHoYo.GenshinImpact", "com.HoYoverse.hkrpgoversea", "com.ea.gp.fifamobile",
+        "com.epicgames.fortnite", "com.riotgames.league.wildrift", "com.innersloth.amongus",
+        "com.subwaysurfers", "com.kiloo.subwaysurfers", "com.king.candycrushsaga",
+        "com.gameloft.asphalt9", "com.playrix.gardenscapes", "com.playrix.homescapes",
+        
+        // Redes Sociales y Multimedia
+        "com.burbn.instagram", "com.zhiliaoapp.musically", "com.toyopagroup.picaboo",
+        "net.whatsapp.WhatsApp", "ph.telegra.Telegraph", "org.telegram.messenger",
+        "com.google.ios.youtube", "com.spotify.client", "com.atebits.Tweetie2",
+        "com.hammerandchisel.discord", "com.facebook.Facebook", "com.facebook.Messenger",
+        "com.netflix.Netflix", "com.amazon.Amazon", "com.reddit.Reddit",
+        
+        // Apps del Sistema Apple
+        "com.apple.mobilesafari", "com.apple.mobilenotes", "com.apple.Maps",
+        "com.apple.facetime", "com.apple.iBooks", "com.apple.podcasts",
+        "com.apple.PosterBoard", "com.apple.mobilemail", "com.apple.weather",
+        "com.apple.camera", "com.apple.Health", "com.apple.Fitness",
+        "com.apple.tips", "com.apple.Passbook", "com.apple.reminders",
+        "com.apple.stocks", "com.apple.news", "com.apple.Home", "com.apple.tv",
+        "com.apple.shortcuts", "com.apple.freeform", "com.apple.calculator",
+        "com.apple.MobileSMS", "com.apple.InCallService", "com.apple.Preferences",
+        "com.apple.springboard", "com.apple.Photos", "com.apple.AppStore",
+        "com.apple.Music", "com.apple.Bridge", "com.apple.Clock",
+        "com.apple.VoiceMemos", "com.apple.Translate", "com.apple.measure",
+        "com.apple.compass", "com.apple.Magnifier", "com.apple.DocumentsApp"
+    ]
     
     private init() {
         checkBridgeStatus()
@@ -113,9 +198,27 @@ public final class ContainerService: ObservableObject {
         ModLog("Estado de MCM Bridge: \(isMCMBridgeAvailable ? "Disponible" : "No disponible / Simulado")", category: "MCM")
     }
     
+    // MARK: - Canonicidad de Rutas (3105)
+    
+    public static func canonicalPath(_ path: String) -> String {
+        guard !path.isEmpty else { return "" }
+        if path.hasPrefix("/private/var/") {
+            return "/var" + path.dropFirst("/private/var".count)
+        }
+        return path
+    }
+    
+    public static func isApplicationContainerPath(_ path: String) -> Bool {
+        let canonicalRoot = canonicalPath(appDataRoot)
+        let canon = canonicalPath(path)
+        guard canon.hasPrefix(canonicalRoot + "/") else { return false }
+        let uuidStr = (canon as NSString).lastPathComponent
+        return UUID(uuidString: uuidStr) != nil
+    }
+    
     // MARK: - Resolución de Contenedores
     
-    /// Resuelve la ruta física del sandbox para un bundleID dado
+    /// Resuelve y activa la ruta física del sandbox para un bundleID dado
     public func resolveContainerPath(for bundleID: String) -> String? {
         let cleanID = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanID.isEmpty else { return nil }
@@ -128,29 +231,22 @@ public final class ContainerService: ObservableObject {
         cacheLock.unlock()
         
         var error: NSString?
-        // 1. Intentar activar contenedor clase 2 (Application Data) vía MCM Bridge
-        if let path = MCMActivateContainerPath(2, cleanID, false, &error), !path.isEmpty {
-            ModLog("Contenedor resuelto vía MHA-C2 para [\(cleanID)]: \(path)", category: "MCM")
+        // 1. Activar contenedor clase 2 (Application Data) vía MHA-C2
+        if let path = MCMActivateContainerPath(2, cleanID, false, &error), Self.isApplicationContainerPath(path) {
             rememberContainerPath(path, for: cleanID)
             return path
         }
         
-        // 2. Intentar vía LSApplicationWorkspace
-        if let path = resolveContainerViaWorkspace(bundleID: cleanID) {
-            ModLog("Contenedor resuelto vía LSApplicationWorkspace para [\(cleanID)]: \(path)", category: "MCM")
-            rememberContainerPath(path, for: cleanID)
-            return path
-        }
-        
-        // 3. Fallback: Escaneo directo de metadata en el sistema de archivos
-        if let path = scanContainerByMetadata(bundleID: cleanID) {
-            ModLog("Contenedor resuelto vía metadata FS para [\(cleanID)]: \(path)", category: "MCM")
-            rememberContainerPath(path, for: cleanID)
-            return path
+        // 2. Consulta vía LSApplicationProxy
+        if let info = MCMAppInfoForBundleID(cleanID),
+           let container = info["container"] as? String,
+           !container.isEmpty,
+           Self.isApplicationContainerPath(container) {
+            rememberContainerPath(container, for: cleanID)
+            return container
         }
         
         #if targetEnvironment(simulator)
-        // Ruta de simulación para pruebas en simulador
         let simPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("SimulatedContainers/\(cleanID)")
         prepareSimulatedContainer(at: simPath, bundleID: cleanID)
         rememberContainerPath(simPath, for: cleanID)
@@ -171,288 +267,287 @@ public final class ContainerService: ObservableObject {
         let docs = (path as NSString).appendingPathComponent("Documents")
         let prefs = (path as NSString).appendingPathComponent("Library/Preferences")
         let caches = (path as NSString).appendingPathComponent("Library/Caches")
-        
-        try? fm.createDirectory(atPath: docs, withIntermediateDirectories: true)
+           try? fm.createDirectory(atPath: docs, withIntermediateDirectories: true)
         try? fm.createDirectory(atPath: prefs, withIntermediateDirectories: true)
         try? fm.createDirectory(atPath: caches, withIntermediateDirectories: true)
-        
-        let sampleSave = (docs as NSString).appendingPathComponent("game_save.dat")
-        if !fm.fileExists(atPath: sampleSave) {
-            try? "sample_game_save_data_100coins".write(toFile: sampleSave, atomically: true, encoding: .utf8)
-        }
-        let samplePlist = (prefs as NSString).appendingPathComponent("\(bundleID).plist")
-        if !fm.fileExists(atPath: samplePlist) {
-            try? "<plist version=\"1.0\"><dict><key>UserModInstalled</key><false/></dict></plist>".write(toFile: samplePlist, atomically: true, encoding: .utf8)
-        }
     }
     
-    // MARK: - Escaneo de Aplicaciones Multi-Nivel
+    // MARK: - Catálogo de Bundles en Disco (/Applications, /System/Applications, /var/containers/Bundle/Application)
+    private struct AppBundleMetadata {
+        let bundleID: String
+        let displayName: String
+        let version: String
+    }
     
-    /// Escanea exhaustivamente todas las aplicaciones instaladas (Usuario y Sistema)
+    private func scanApplicationBundleCatalog() -> [String: AppBundleMetadata] {
+        var catalog: [String: AppBundleMetadata] = [:]
+        let fm = FileManager.default
+        let roots: [(path: String, nested: Bool)] = [
+            ("/var/containers/Bundle/Application", true),
+            ("/Applications", false),
+            ("/System/Applications", false)
+        ]
+        
+        for root in roots {
+            guard let entries = try? fm.contentsOfDirectory(atPath: root.path) else { continue }
+            var appPaths: [String] = []
+            
+            if root.nested {
+                for dir in entries.prefix(2048) {
+                    guard UUID(uuidString: dir) != nil else { continue }
+                    let containerDir = (root.path as NSString).appendingPathComponent(dir)
+                    guard let children = try? fm.contentsOfDirectory(atPath: containerDir) else { continue }
+                    for child in children.prefix(16) {
+                        if child.hasSuffix(".app") {
+                            appPaths.append((containerDir as NSString).appendingPathComponent(child))
+                        }
+                    }
+                }
+            } else {
+                for entry in entries.prefix(2048) {
+                    if entry.hasSuffix(".app") {
+                        appPaths.append((root.path as NSString).appendingPathComponent(entry))
+                    }
+                }
+            }
+            
+            for appPath in appPaths {
+                let infoPath = (appPath as NSString).appendingPathComponent("Info.plist")
+                guard let data = try? Data(contentsOf: URL(fileURLWithPath: infoPath)),
+                      let plist = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any],
+                      let bundleID = (plist["CFBundleIdentifier"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !bundleID.isEmpty else {
+                    continue
+                }
+                
+                let name = (plist["CFBundleDisplayName"] as? String) ?? (plist["CFBundleName"] as? String) ?? self.cleanAppDisplayName(from: bundleID)
+                let version = (plist["CFBundleShortVersionString"] as? String) ?? ""
+                catalog[bundleID] = AppBundleMetadata(bundleID: bundleID, displayName: name, version: version)
+            }
+        }
+        
+        return catalog
+    }
+    
+    // MARK: - Contenedores del Sandbox vía Inodos fsgetpath (Método 3105 bad_query_list)
+    private func scanFilesystemContainers() -> [String: (bundleID: String, name: String)] {
+        var result: [String: (bundleID: String, name: String)] = [:]
+        let containerDirs = MCMEnumerateDirectoriesViaFSGetPath(Self.appDataRoot, 2_000_000)
+        
+        for dir in containerDirs {
+            let metadataPath = (dir as NSString).appendingPathComponent(".com.apple.mobile_container_manager.metadata.plist")
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: metadataPath)),
+                  let plist = (try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)) as? [String: Any],
+                  let bundleID = (plist["MCMMetadataIdentifier"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !bundleID.isEmpty,
+                  !bundleID.hasPrefix("systemgroup.") else {
+                continue
+            }
+            
+            var name = ""
+            if let info = plist["MCMMetadataInfo"] as? [String: Any] {
+                name = (info["CFBundleDisplayName"] as? String) ?? (info["CFBundleName"] as? String) ?? ""
+            }
+            result[bundleID] = (bundleID: bundleID, name: name.isEmpty ? self.cleanAppDisplayName(from: bundleID) : name)
+            rememberContainerPath(dir, for: bundleID)
+        }
+        
+        return result
+    }
+    
+    // MARK: - Escaneo de Aplicaciones (Pipeline Completo Método 3105 MHA-C2)
+    
     public func refreshApps() {
         isScanning = true
         DispatchQueue.global(qos: .userInitiated).async {
             var appsMap: [String: InstalledAppInfo] = [:]
             
-            // Nivel 1: LSApplicationWorkspace (Enumeración de todas las apps instaladas reales)
-            self.scanViaLSApplicationWorkspace(into: &appsMap)
+            // FASE 1: Catálogo de Bundles en Disco (/Applications, /System/Applications, /var/containers/Bundle/Application)
+            let bundleCatalog = self.scanApplicationBundleCatalog()
+            ModLog("3105: Bundles escaneados en disco: \(bundleCatalog.count)", category: "APP")
             
-            // Nivel 2: Escaneo directo de directorios /var/mobile/Containers/Data/Application
-            self.scanViaFileSystemMetadata(into: &appsMap)
+            // FASE 2: Contenedores en Filesystem vía fsgetpath (walk de inodos 3105)
+            let fsContainers = self.scanFilesystemContainers()
+            ModLog("3105: Contenedores detectados por fsgetpath: \(fsContainers.count)", category: "APP")
             
-            // Nivel 3: MCM Bridge Enumeration (si está disponible)
-            var error: NSString?
-            let identifiers = MCMEnumerateIdentifiersForClass(2, 1000, &error)
-            for bundleID in identifiers {
-                if appsMap[bundleID] == nil {
-                    let name = self.cleanAppDisplayName(from: bundleID)
-                    let container = self.resolveContainerPath(for: bundleID) ?? ""
-                    let isUser = !bundleID.hasPrefix("com.apple.")
-                    appsMap[bundleID] = InstalledAppInfo(
-                        bundleID: bundleID,
-                        displayName: name,
-                        containerPath: container,
-                        isUserApp: isUser
-                    )
+            // FASE 3: Aplicaciones instaladas vía API del sistema (MobileInstallation + LaunchServices)
+            let rawInstalled = MCMInstalledAppInfo()
+            ModLog("3105: MCMInstalledAppInfo devolvió \(rawInstalled.count) apps", category: "APP")
+            
+            // FASE 4: Extraer candidatos de LaunchServices Store (.csstore de com.apple.lsd)
+            let lsCandidates = self.extractLaunchServicesStoreIdentifiers()
+            ModLog("3105: LaunchServices candidatos: \(lsCandidates.count)", category: "APP")
+            
+            // FASE 5: Consolidar universo de candidatos
+            var allCandidates = Set<String>()
+            for bID in bundleCatalog.keys { allCandidates.insert(bID) }
+            for bID in fsContainers.keys { allCandidates.insert(bID) }
+            for bID in rawInstalled.keys { allCandidates.insert(bID) }
+            for bID in lsCandidates { allCandidates.insert(bID) }
+            for bID in Self.researchAppIdentifiers { allCandidates.insert(bID) }
+            
+            var err: NSString?
+            let mcmIdentifiers = MCMEnumerateIdentifiersForClass(2, 500, &err)
+            for bID in mcmIdentifiers { allCandidates.insert(bID) }
+            
+            let filteredCandidates = allCandidates.filter { Self.shouldDisplayApp(bundleID: $0) }
+            ModLog("3105: Total de candidatos a verificar y activar: \(filteredCandidates.count)", category: "APP")
+            
+            var resolvedCount = 0
+            for bundleID in filteredCandidates {
+                var containerPath = self.resolveContainerPath(for: bundleID) ?? ""
+                
+                // Si aún no tenemos ruta, intentar activar con MHA-C2
+                if containerPath.isEmpty {
+                    var lookupErr: NSString?
+                    if let path = MCMActivateContainerPath(2, bundleID, false, &lookupErr),
+                       Self.isApplicationContainerPath(path) {
+                        containerPath = path
+                        self.rememberContainerPath(path, for: bundleID)
+                    }
+                }
+                
+                // Si tenemos contenedor válido en disco
+                guard !containerPath.isEmpty && Self.isApplicationContainerPath(containerPath) else {
+                    continue
+                }
+                
+                // Determinar nombre y versión
+                var displayName = ""
+                var version = ""
+                
+                if let meta = bundleCatalog[bundleID] {
+                    displayName = meta.displayName
+                    version = meta.version
+                } else if let fs = fsContainers[bundleID], !fs.name.isEmpty {
+                    displayName = fs.name
+                } else if let raw = rawInstalled[bundleID] {
+                    displayName = (raw["name"] as? String) ?? ""
+                    version = (raw["version"] as? String) ?? ""
+                }
+                
+                if displayName.isEmpty {
+                    let info = MCMAppInfoForBundleID(bundleID)
+                    displayName = (info["name"] as? String) ?? self.cleanAppDisplayName(from: bundleID)
+                }
+                
+                let isUser = !bundleID.hasPrefix("com.apple.")
+                appsMap[bundleID] = InstalledAppInfo(
+                    bundleID: bundleID,
+                    displayName: displayName,
+                    containerPath: containerPath,
+                    version: version,
+                    isUserApp: isUser
+                )
+                
+                resolvedCount += 1
+                if resolvedCount % 5 == 0 {
+                    self.publishApps(Array(appsMap.values))
                 }
             }
             
-            // Nivel 4: Si la lista sigue vacía (ej. Simulador sin permisos de sistema), cargar apps comunes
+            // Si el dispositivo no devolvió apps (ej. simulador), cargar catálogo popular
             if appsMap.isEmpty {
-                let defaultApps = [
-                    ("com.activision.callofduty.shooter", "Call of Duty: Mobile", true),
-                    ("com.tencent.ig", "PUBG MOBILE", true),
-                    ("com.dts.freefireth", "Free Fire", true),
-                    ("com.roblox.robloxmobile", "Roblox", true),
-                    ("com.apple.mobilesafari", "Safari", false),
-                    ("com.apple.Preferences", "Ajustes", false),
-                    ("com.apple.MobileSMS", "Mensajes", false),
-                    ("com.apple.Photos", "Fotos", false),
-                    ("com.apple.Music", "Música", false),
-                    ("com.apple.DocumentsApp", "Archivos", false)
-                ]
-                for (bID, name, isUser) in defaultApps {
+                for bID in Self.researchAppIdentifiers.prefix(16) {
                     let path = self.resolveContainerPath(for: bID) ?? ""
+                    let isUser = !bID.hasPrefix("com.apple.")
                     appsMap[bID] = InstalledAppInfo(
                         bundleID: bID,
-                        displayName: name,
+                        displayName: self.cleanAppDisplayName(from: bID),
                         containerPath: path,
                         isUserApp: isUser
                     )
                 }
             }
             
-            let sorted = Array(appsMap.values).sorted {
-                // Apps de usuario primero, luego orden alfabético
-                if $0.isUserApp != $1.isUserApp {
-                    return $0.isUserApp && !$1.isUserApp
-                }
-                return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-            }
+            self.publishApps(Array(appsMap.values))
             
             DispatchQueue.main.async {
-                self.installedApps = sorted
                 self.isScanning = false
-                ModLog("Total de aplicaciones detectadas: \(sorted.count)", category: "APP")
+                ModLog("3105: Total final de aplicaciones listas: \(self.installedApps.count)", category: "APP")
             }
         }
     }
     
-    // MARK: - Escaneo Nivel 1: LSApplicationWorkspace
-    private func scanViaLSApplicationWorkspace(into map: inout [String: InstalledAppInfo]) {
-        guard let workspaceClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type else {
-            return
+    private func publishApps(_ list: [InstalledAppInfo]) {
+        let sorted = list.sorted {
+            if $0.isUserApp != $1.isUserApp {
+                return $0.isUserApp && !$1.isUserApp
+            }
+            return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
-        
-        let selDefault = NSSelectorFromString("defaultWorkspace")
-        guard workspaceClass.responds(to: selDefault),
-              let workspace = workspaceClass.perform(selDefault)?.takeUnretainedValue() as? NSObject else {
-            return
-        }
-        
-        var proxies: [NSObject] = []
-        let selInstalled = NSSelectorFromString("allInstalledApplications")
-        let selAll = NSSelectorFromString("allApplications")
-        
-        if workspace.responds(to: selInstalled),
-           let list = workspace.perform(selInstalled)?.takeUnretainedValue() as? [NSObject] {
-            proxies = list
-        } else if workspace.responds(to: selAll),
-                  let list = workspace.perform(selAll)?.takeUnretainedValue() as? [NSObject] {
-            proxies = list
-        }
-        
-        for proxy in proxies {
-            let selAppID = NSSelectorFromString("applicationIdentifier")
-            let selBundleID = NSSelectorFromString("bundleIdentifier")
-            var bID: String?
-            
-            if proxy.responds(to: selAppID),
-               let id = proxy.perform(selAppID)?.takeUnretainedValue() as? String {
-                bID = id
-            } else if proxy.responds(to: selBundleID),
-                      let id = proxy.perform(selBundleID)?.takeUnretainedValue() as? String {
-                bID = id
-            }
-            
-            guard let bundleID = bID, !bundleID.isEmpty else { continue }
-            
-            // Nombre mostrado
-            var displayName = bundleID
-            let selName = NSSelectorFromString("localizedName")
-            if proxy.responds(to: selName),
-               let name = proxy.perform(selName)?.takeUnretainedValue() as? String, !name.isEmpty {
-                displayName = name
-            } else {
-                displayName = cleanAppDisplayName(from: bundleID)
-            }
-            
-            // Ruta del contenedor de datos
-            var containerPath = ""
-            let selDataContainer = NSSelectorFromString("dataContainerURL")
-            if proxy.responds(to: selDataContainer),
-               let url = proxy.perform(selDataContainer)?.takeUnretainedValue() as? NSURL,
-               let path = url.path, !path.isEmpty {
-                containerPath = path
-                rememberContainerPath(path, for: bundleID)
-            }
-            
-            // Tipo de app (Usuario vs Sistema)
-            var isUser = true
-            let selAppType = NSSelectorFromString("applicationType")
-            if proxy.responds(to: selAppType),
-               let typeStr = proxy.perform(selAppType)?.takeUnretainedValue() as? String {
-                isUser = (typeStr.caseInsensitiveCompare("User") == .orderedSame)
-            } else if bundleID.hasPrefix("com.apple.") {
-                isUser = false
-            }
-            
-            // Versión
-            var version = ""
-            let selVersion = NSSelectorFromString("shortVersionString")
-            if proxy.responds(to: selVersion),
-               let ver = proxy.perform(selVersion)?.takeUnretainedValue() as? String {
-                version = ver
-            }
-            
-            map[bundleID] = InstalledAppInfo(
-                bundleID: bundleID,
-                displayName: displayName,
-                containerPath: containerPath,
-                version: version,
-                isUserApp: isUser
-            )
+        DispatchQueue.main.async {
+            self.installedApps = sorted
         }
     }
     
-    private func resolveContainerViaWorkspace(bundleID: String) -> String? {
-        guard let workspaceClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type else {
-            return nil
+    /// Oculta MobileHouseArrest (ModManager) para no listarse a sí mismo como objetivo
+    public static func shouldDisplayApp(bundleID: String) -> Bool {
+        let clean = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+        guard UUID(uuidString: clean) == nil else { return false }
+        if clean.caseInsensitiveCompare("com.apple.mobile.MobileHouseArrest") == .orderedSame {
+            return false
         }
-        let selDefault = NSSelectorFromString("defaultWorkspace")
-        guard workspaceClass.responds(to: selDefault),
-              let workspace = workspaceClass.perform(selDefault)?.takeUnretainedValue() as? NSObject else {
-            return nil
+        if clean.caseInsensitiveCompare("com.apple.mobile.mobilehousearrest") == .orderedSame {
+            return false
         }
-        
-        let selAppForID = NSSelectorFromString("applicationProxyForIdentifier:")
-        if workspace.responds(to: selAppForID),
-           let proxy = workspace.perform(selAppForID, with: bundleID)?.takeUnretainedValue() as? NSObject {
-            let selDataContainer = NSSelectorFromString("dataContainerURL")
-            if proxy.responds(to: selDataContainer),
-               let url = proxy.perform(selDataContainer)?.takeUnretainedValue() as? NSURL,
-               let path = url.path, !path.isEmpty, FileManager.default.fileExists(atPath: path) {
-                return path
-            }
-        }
-        return nil
+        return true
     }
     
-    // MARK: - Escaneo Nivel 2: Sistema de Archivos
-    private func scanViaFileSystemMetadata(into map: inout [String: InstalledAppInfo]) {
+    // MARK: - Extracción de com.apple.LaunchServices-*.csstore (3105)
+    
+    private func extractLaunchServicesStoreIdentifiers() -> [String] {
+        var cachePaths: [String] = []
+        var seenCachePaths = Set<String>()
+        
+        func addPath(_ p: String) {
+            let canon = Self.canonicalPath(p)
+            if !canon.isEmpty && seenCachePaths.insert(canon).inserted {
+                cachePaths.append(canon)
+            }
+        }
+        
+        // 1. Activar contenedor de com.apple.lsd (Clase 10 = System Container)
+        var serviceLookupErr: NSString?
+        if let lsdPath = MCMActivateContainerPath(10, "com.apple.lsd", false, &serviceLookupErr) {
+            let cachePath = (lsdPath as NSString).appendingPathComponent("Library/Caches")
+            addPath(cachePath)
+            ModLog("3105: Contenedor com.apple.lsd activado: \(lsdPath)", category: "MCM")
+        }
+        
+        // 2. Rutas del sistema estándar
+        addPath("/var/mobile/Library/Caches")
+        addPath("/var/db/lsd")
+        
+        var identifiers: [String] = []
+        var seenIdentifiers = Set<String>()
         let fm = FileManager.default
-        for root in appDataRoots {
-            guard let items = try? fm.contentsOfDirectory(atPath: root) else { continue }
-            for item in items {
-                let containerDir = (root as NSString).appendingPathComponent(item)
-                let metaPath = (containerDir as NSString).appendingPathComponent(".com.apple.mobile_container_manager.metadata.plist")
-                if let data = try? Data(contentsOf: URL(fileURLWithPath: metaPath)),
-                   let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-                   let bundleID = plist["MCMMetadataIdentifier"] as? String, !bundleID.isEmpty {
-                    
-                    rememberContainerPath(containerDir, for: bundleID)
-                    
-                    if map[bundleID] == nil {
-                        let name = resolveDisplayNameFromBundle(bundleID: bundleID) ?? cleanAppDisplayName(from: bundleID)
-                        let isUser = !bundleID.hasPrefix("com.apple.")
-                        map[bundleID] = InstalledAppInfo(
-                            bundleID: bundleID,
-                            displayName: name,
-                            containerPath: containerDir,
-                            isUserApp: isUser
-                        )
-                    } else if map[bundleID]?.containerPath.isEmpty == true {
-                        // Actualizar ruta si faltaba
-                        let existing = map[bundleID]!
-                        map[bundleID] = InstalledAppInfo(
-                            bundleID: existing.bundleID,
-                            displayName: existing.displayName,
-                            containerPath: containerDir,
-                            version: existing.version,
-                            isUserApp: existing.isUserApp
-                        )
-                    }
+        
+        for cacheDir in cachePaths {
+            guard let files = try? fm.contentsOfDirectory(atPath: cacheDir) else { continue }
+            for filename in files {
+                guard filename.hasPrefix("com.apple.LaunchServices-") && filename.hasSuffix(".csstore") else {
+                    continue
                 }
+                let fullPath = (cacheDir as NSString).appendingPathComponent(filename)
+                guard let data = try? Data(contentsOf: URL(fileURLWithPath: fullPath), options: .mappedIfSafe) else {
+                    continue
+                }
+                
+                let extracted = LaunchServicesCandidateExtractor.identifiers(from: data, limit: 16_384)
+                for id in extracted where seenIdentifiers.insert(id).inserted {
+                    identifiers.append(id)
+                }
+                ModLog("3105: Extraídos \(extracted.count) identificadores de \(filename)", category: "MCM")
             }
         }
-    }
-    
-    private func scanContainerByMetadata(bundleID: String) -> String? {
-        let fm = FileManager.default
-        for root in appDataRoots {
-            guard let items = try? fm.contentsOfDirectory(atPath: root) else { continue }
-            for item in items {
-                let containerDir = (root as NSString).appendingPathComponent(item)
-                let metaPath = (containerDir as NSString).appendingPathComponent(".com.apple.mobile_container_manager.metadata.plist")
-                if let data = try? Data(contentsOf: URL(fileURLWithPath: metaPath)),
-                   let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-                   let ident = plist["MCMMetadataIdentifier"] as? String, ident == bundleID {
-                    return containerDir
-                }
-            }
-        }
-        return nil
-    }
-    
-    private func resolveDisplayNameFromBundle(bundleID: String) -> String? {
-        let fm = FileManager.default
-        for root in appBundleRoots {
-            guard let items = try? fm.contentsOfDirectory(atPath: root) else { continue }
-            for item in items {
-                let bundleDir = (root as NSString).appendingPathComponent(item)
-                guard let subItems = try? fm.contentsOfDirectory(atPath: bundleDir) else { continue }
-                for sub in subItems where sub.hasSuffix(".app") {
-                    let appDir = (bundleDir as NSString).appendingPathComponent(sub)
-                    let infoPlistPath = (appDir as NSString).appendingPathComponent("Info.plist")
-                    if let data = try? Data(contentsOf: URL(fileURLWithPath: infoPlistPath)),
-                       let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
-                       let ident = plist["CFBundleIdentifier"] as? String, ident == bundleID {
-                        if let name = plist["CFBundleDisplayName"] as? String, !name.isEmpty {
-                            return name
-                        }
-                        if let name = plist["CFBundleName"] as? String, !name.isEmpty {
-                            return name
-                        }
-                    }
-                }
-            }
-        }
-        return nil
+        
+        return identifiers
     }
     
     // MARK: - Comprobación y Validación de Rutas
     
-    /// Valida exhaustivamente si la ruta existe en el sandbox de la aplicación de destino
     public func validatePath(bundleID: String, relativePath: String) -> PathValidationInfo {
         let cleanRelative = relativePath
             .replacingOccurrences(of: "\\", with: "/")
@@ -513,7 +608,6 @@ public final class ContainerService: ObservableObject {
             }
         }
         
-        // Comprobar si al menos la carpeta padre existe
         let parentDir = targetURL.deletingLastPathComponent().path
         if fm.fileExists(atPath: parentDir) {
             return PathValidationInfo(
@@ -538,7 +632,6 @@ public final class ContainerService: ObservableObject {
     
     // MARK: - Explorador de Archivos del Sandbox
     
-    /// Lista el contenido de una carpeta relativa dentro del sandbox de la app
     public func listContents(bundleID: String, subpath: String) -> [SandboxFileItem] {
         guard let containerPath = resolveContainerPath(for: bundleID) else { return [] }
         
@@ -557,7 +650,6 @@ public final class ContainerService: ObservableObject {
         
         var items: [SandboxFileItem] = []
         for name in contents {
-            // Ignorar archivos ocultos irrelevantes si se desea, o mostrarlos con prefijo
             let itemURL = currentFolderURL.appendingPathComponent(name)
             let itemPath = itemURL.path
             var isDir: ObjCBool = false
@@ -583,7 +675,6 @@ public final class ContainerService: ObservableObject {
             ))
         }
         
-        // Carpetas primero, luego orden alfabético
         return items.sorted {
             if $0.isDirectory != $1.isDirectory {
                 return $0.isDirectory && !$1.isDirectory
