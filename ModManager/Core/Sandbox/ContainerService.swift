@@ -238,8 +238,8 @@ public final class ContainerService: ObservableObject {
         }
         
         // 2. Consulta vía LSApplicationProxy
-        if let info = MCMAppInfoForBundleID(cleanID),
-           let container = info["container"] as? String,
+        let info = MCMAppInfoForBundleID(cleanID)
+        if let container = info["container"] as? String,
            !container.isEmpty,
            Self.isApplicationContainerPath(container) {
             rememberContainerPath(container, for: cleanID)
